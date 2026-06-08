@@ -38,12 +38,7 @@ export default function AccountPage() {
   if (!user) {
     return (
       <div className="px-4 pt-5 pb-28 space-y-5">
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 transition-colors">
-            <ArrowLeft size={18}/>
-          </Link>
-          <h1 className="text-xl font-bold tracking-tight text-zinc-100">Account</h1>
-        </div>
+        <h1 className="text-xl font-bold tracking-tight text-zinc-100">Account</h1>
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center space-y-4">
           <div className="text-3xl">🥋</div>
           <div>
