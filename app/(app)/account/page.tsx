@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { ArrowLeft, LogOut, Users, UsersRound, Shield, Eye, EyeOff, LogIn, UserPlus } from "lucide-react";
+import { ArrowLeft, LogOut, Shield, LogIn, UserPlus } from "lucide-react";
 import Link from "next/link";
 
 export default function AccountPage() {
@@ -90,18 +90,6 @@ export default function AccountPage() {
             <span className="inline-block mt-1 text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md">👨‍🏫 Trainer</span>
           )}
         </div>
-      </div>
-
-      {/* Quick links */}
-      <div className="grid grid-cols-2 gap-3">
-        <Link href="/friends" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover:border-zinc-700 transition-colors flex flex-col items-center gap-2">
-          <Users size={22} className="text-red-400"/>
-          <span className="text-sm font-semibold text-zinc-200">Friends</span>
-        </Link>
-        <Link href="/groups" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover:border-zinc-700 transition-colors flex flex-col items-center gap-2">
-          <UsersRound size={22} className="text-red-400"/>
-          <span className="text-sm font-semibold text-zinc-200">Groups</span>
-        </Link>
       </div>
 
       {/* Role */}
