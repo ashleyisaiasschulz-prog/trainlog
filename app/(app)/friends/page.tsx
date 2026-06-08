@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { UserPlus, Users, Check, X, Search, ChevronRight, LogIn } from "lucide-react";
+import { UserPlus, Users, Check, X, Search, ChevronRight, LogIn, UsersRound } from "lucide-react";
 import Link from "next/link";
 import BeltBadge from "@/components/BeltBadge";
 import type { Belt } from "@/lib/types";
@@ -154,7 +154,13 @@ export default function FriendsPage() {
 
   return (
     <div className="px-4 pt-5 pb-28 space-y-5">
-      <h1 className="text-xl font-bold tracking-tight text-zinc-100">Friends</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold tracking-tight text-zinc-100">Friends</h1>
+        <Link href="/groups"
+          className="flex items-center gap-1.5 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 text-sm font-medium px-3 py-2 rounded-xl transition-colors">
+          <UsersRound size={15}/> Groups
+        </Link>
+      </div>
 
       {/* Search */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
