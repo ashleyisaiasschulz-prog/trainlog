@@ -4,28 +4,64 @@ import { useTrainingStore } from "@/store/useTrainingStore";
 import { Schedule, CheckIn } from "@/lib/types";
 import { randomId } from "@/lib/id";
 import Link from "next/link";
-import { format, addDays, startOfDay } from "date-fns";
-import { Check, X, ChevronRight } from "lucide-react";
+import { format, addDays, startOfDay, differenceInCalendarDays } from "date-fns";
+import { Check, X, ChevronRight, Plus } from "lucide-react";
 
-function getNextOccurrences(schedules: Schedule[], days = 7) {
+function getUpcoming(schedules: Schedule[], days = 14) {
   const result: { schedule: Schedule; date: string }[] = [];
   const today = startOfDay(new Date());
-  for (let d = 0; d < days; d++) {
-    const day = addDays(today, d);
-    schedules
-      .filter((s) => s.active && s.dayOfWeek === day.getDay())
-      .forEach((s) => result.push({ schedule: s, date: format(day, "yyyy-MM-dd") }));
+
+  for (const s of schedules) {
+    if (!s.active) continue;
+
+    if (s.type === "once" && s.date) {
+      const diff = differenceInCalendarDays(new Date(s.date + "T12:00:00"), today);
+      if (diff >= 0 && diff < days) result.push({ schedule: s, date: s.date });
+    } else if (s.type !== "once") {
+      for (let d = 0; d < days; d++) {
+        const day = addDays(today, d);
+        if (s.dayOfWeek === day.getDay())
+          result.push({ schedule: s, date: format(day, "yyyy-MM-dd") });
+      }
+    }
   }
+
   return result.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-const isPast = (date: string) => new Date(date + "T23:59:59") < new Date();
-const isToday = (date: string) => date === format(new Date(), "yyyy-MM-dd");
+const isPast   = (date: string) => new Date(date + "T23:59:59") < new Date();
+const isToday  = (date: string) => date === format(new Date(), "yyyy-MM-dd");
+const isTomorrow = (date: string) =>
+  date === format(addDays(new Date(), 1), "yyyy-MM-dd");
+
+function dayLabel(date: string) {
+  if (isToday(date))    return "Today";
+  if (isTomorrow(date)) return "Tomorrow";
+  return format(new Date(date + "T12:00:00"), "EEE");
+}
 
 export default function ScheduleWidget() {
   const { schedules, checkIns, upsertCheckIn } = useTrainingStore();
-  const occurrences = getNextOccurrences(schedules, 7);
-  if (occurrences.length === 0) return null;
+  const occurrences = getUpcoming(schedules, 14);
+
+  if (occurrences.length === 0) {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Upcoming</span>
+          <Link href="/schedule" className="flex items-center gap-1 text-[11px] font-semibold text-red-500 hover:text-red-400 transition-colors">
+            <Plus size={11} strokeWidth={2.5} /> Add
+          </Link>
+        </div>
+        <div className="px-4 py-6 text-center">
+          <p className="text-sm text-zinc-600">No upcoming sessions</p>
+          <Link href="/schedule" className="text-xs text-red-500 hover:text-red-400 mt-1 inline-block transition-colors">
+            Schedule one →
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const getCheckIn = (scheduleId: string, date: string): CheckIn | undefined =>
     checkIns.find((c) => c.scheduleId === scheduleId && c.date === date);
@@ -35,15 +71,18 @@ export default function ScheduleWidget() {
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-        <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">This Week</span>
-        <Link href="/schedule" className="text-[11px] font-semibold text-red-500 hover:text-red-400 transition-colors">
-          Manage →
-        </Link>
+        <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Upcoming</span>
+        <div className="flex items-center gap-3">
+          <Link href="/schedule" className="flex items-center gap-1 text-[11px] font-semibold text-red-500 hover:text-red-400 transition-colors">
+            <Plus size={11} strokeWidth={2.5} /> Add
+          </Link>
+          <Link href="/schedule" className="text-[11px] font-semibold text-zinc-500 hover:text-zinc-400 transition-colors">
+            Manage →
+          </Link>
+        </div>
       </div>
 
-      {/* Rows */}
       <div className="divide-y divide-zinc-800/60">
         {occurrences.map(({ schedule, date }) => {
           const checkIn  = getCheckIn(schedule.id, date);
@@ -53,13 +92,11 @@ export default function ScheduleWidget() {
           const missed   = checkIn?.attended === false;
 
           return (
-            <div key={`${schedule.id}-${date}`} className={`flex items-center gap-3 px-4 py-3 ${
-              missed ? "opacity-40" : ""
-            }`}>
+            <div key={`${schedule.id}-${date}`} className={`flex items-center gap-3 px-4 py-3 ${missed ? "opacity-40" : ""}`}>
               {/* Day badge */}
-              <div className={`w-8 text-center shrink-0 ${today ? "text-red-400" : past ? "text-zinc-700" : "text-zinc-400"}`}>
+              <div className={`w-12 text-center shrink-0 ${today ? "text-red-400" : past ? "text-zinc-700" : "text-zinc-400"}`}>
                 <p className="text-[9px] font-semibold uppercase tracking-widest leading-none">
-                  {today ? "Now" : format(new Date(date + "T12:00:00"), "EEE")}
+                  {dayLabel(date)}
                 </p>
                 <p className="text-base font-bold leading-snug tabular-nums">
                   {format(new Date(date + "T12:00:00"), "d")}
@@ -68,9 +105,14 @@ export default function ScheduleWidget() {
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className={`text-sm font-medium truncate ${past && !attended ? "text-zinc-500" : "text-zinc-100"}`}>
-                  {schedule.name}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <p className={`text-sm font-medium truncate ${past && !attended ? "text-zinc-500" : "text-zinc-100"}`}>
+                    {schedule.name}
+                  </p>
+                  {schedule.type === "once" && (
+                    <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded shrink-0">ONCE</span>
+                  )}
+                </div>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-[11px] text-zinc-600">{schedule.time}</span>
                   <span className="text-zinc-700 text-xs">·</span>

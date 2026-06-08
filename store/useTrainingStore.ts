@@ -54,12 +54,14 @@ function tournamentToRow(t: Tournament, userId: string) {
     weight_class: t.weightClass, gi: t.gi, placement: t.placement, notes: t.notes, matches: t.matches };
 }
 function rowToSchedule(r: any): Schedule {
-  return { id: r.id, name: r.name, dayOfWeek: r.day_of_week, time: r.time,
-    duration: r.duration, gi: r.gi, gym: r.gym ?? "", active: r.active };
+  return { id: r.id, name: r.name, type: r.type ?? "recurring",
+    dayOfWeek: r.day_of_week, date: r.date ?? undefined,
+    time: r.time, duration: r.duration, gi: r.gi, gym: r.gym ?? "", active: r.active };
 }
 function scheduleToRow(s: Schedule, userId: string) {
-  return { id: s.id, user_id: userId, name: s.name, day_of_week: s.dayOfWeek, time: s.time,
-    duration: s.duration, gi: s.gi, gym: s.gym, active: s.active };
+  return { id: s.id, user_id: userId, name: s.name, type: s.type,
+    day_of_week: s.dayOfWeek, date: s.date ?? null,
+    time: s.time, duration: s.duration, gi: s.gi, gym: s.gym, active: s.active };
 }
 function rowToCheckIn(r: any): CheckIn {
   return { id: r.id, scheduleId: r.schedule_id, date: r.date, attended: r.attended,

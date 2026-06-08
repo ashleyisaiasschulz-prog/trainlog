@@ -30,10 +30,12 @@ export const DAY_NAMES_FULL = [
 
 export interface Schedule {
   id: string;
-  name: string;         // e.g. "Tuesday Evening No-Gi"
-  dayOfWeek: DayOfWeek;
-  time: string;         // "18:00"
-  duration: number;     // minutes
+  name: string;
+  type: "recurring" | "once";
+  dayOfWeek: DayOfWeek;  // used when type === "recurring"
+  date?: string;         // yyyy-MM-dd, used when type === "once"
+  time: string;          // "18:00"
+  duration: number;      // minutes
   gi: boolean;
   gym: string;
   active: boolean;

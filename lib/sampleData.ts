@@ -87,7 +87,7 @@ export const sampleSchedules: Schedule[] = [
     duration: 90,
     gi: false,
     gym: "Alliance HQ",
-    active: true,
+    active: true, type: "recurring",
   },
   {
     id: "sched-2",
@@ -97,7 +97,7 @@ export const sampleSchedules: Schedule[] = [
     duration: 75,
     gi: true,
     gym: "Alliance HQ",
-    active: true,
+    active: true, type: "recurring",
   },
   {
     id: "sched-3",
@@ -107,6 +107,6 @@ export const sampleSchedules: Schedule[] = [
     duration: 120,
     gi: true,
     gym: "Alliance HQ",
-    active: true,
+    active: true, type: "recurring",
   },
 ];
