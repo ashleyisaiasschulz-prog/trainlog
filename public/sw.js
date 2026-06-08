@@ -1,5 +1,5 @@
 // Minimal service worker — enables PWA install + basic offline shell.
-const CACHE = "trainlog-v1";
+const CACHE = "trainlog-v2";
 
 self.addEventListener("install", (e) => {
   self.skipWaiting();
