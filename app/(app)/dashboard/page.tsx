@@ -9,7 +9,7 @@ import GoalsCard from "@/components/GoalsCard";
 import BeltBadge from "@/components/BeltBadge";
 import ScheduleWidget from "@/components/ScheduleWidget";
 import Link from "next/link";
-import { Plus, Clock, Calendar, Zap, ChevronRight, Trophy } from "lucide-react";
+import { Plus, Clock, Calendar, Zap, ChevronRight } from "lucide-react";
 import { BELT_ORDER, BELT_LABELS } from "@/lib/types";
 import { differenceInMonths, differenceInYears } from "date-fns";
 
@@ -58,20 +58,12 @@ export default function DashboardPage() {
           </div>
           <p className="text-xs text-zinc-500 mt-0.5">Your BJJ journey</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/tournaments/add"
-            className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 active:scale-[0.97] text-zinc-300 font-semibold rounded-xl transition-all px-3 py-2.5 text-sm"
-          >
-            <Trophy size={14} /> Comp
-          </Link>
-          <Link
-            href="/add"
-            className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 active:scale-[0.97] text-white font-semibold rounded-xl transition-all px-4 py-2.5 text-sm"
-          >
-            <Plus size={15} strokeWidth={2.5} /> Log
-          </Link>
-        </div>
+        <Link
+          href="/add"
+          className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 active:scale-[0.97] text-white font-semibold rounded-xl transition-all px-4 py-2.5 text-sm"
+        >
+          <Plus size={15} strokeWidth={2.5} /> Log
+        </Link>
       </div>
 
       {/* ── Belt card ── */}

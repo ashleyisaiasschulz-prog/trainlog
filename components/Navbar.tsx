@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BarChart2, Plus, Users } from "lucide-react";
+import { Home, BarChart2, Trophy, Users } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export default function Navbar() {
@@ -28,17 +28,10 @@ export default function Navbar() {
             <BarChart2 />
           </NavItem>
 
-          {/* Add button */}
-          <div className="flex-1 flex justify-center">
-            <Link
-              href="/add"
-              className="w-12 h-12 bg-red-500 rounded-2xl flex items-center justify-center
-                         shadow-lg shadow-red-500/25 hover:bg-red-400
-                         active:scale-95 transition-all duration-150"
-            >
-              <Plus size={22} strokeWidth={2.5} className="text-white" />
-            </Link>
-          </div>
+          {/* Competitions */}
+          <NavItem href="/tournaments" label="Comps" pathname={pathname}>
+            <Trophy />
+          </NavItem>
 
           {/* Friends */}
           <NavItem href="/friends" label="Friends" pathname={pathname}>
