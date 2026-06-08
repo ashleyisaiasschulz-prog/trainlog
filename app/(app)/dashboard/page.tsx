@@ -9,10 +9,9 @@ import GoalsCard from "@/components/GoalsCard";
 import BeltBadge from "@/components/BeltBadge";
 import ScheduleWidget from "@/components/ScheduleWidget";
 import Link from "next/link";
-import { Plus, Clock, Calendar, Zap, ChevronRight, CircleUser } from "lucide-react";
+import { Plus, Clock, Calendar, Zap, ChevronRight, Trophy } from "lucide-react";
 import { BELT_ORDER, BELT_LABELS } from "@/lib/types";
 import { differenceInMonths, differenceInYears } from "date-fns";
-import { useAuthStore } from "@/store/useAuthStore";
 
 function timeInBelt(promotions: { toBelt: string; date: string }[], belt: string) {
   const last = [...promotions].reverse().find((p) => p.toBelt === belt);
@@ -28,7 +27,6 @@ type Filter = "all" | "gi" | "nogi";
 
 export default function DashboardPage() {
   const { sessions, currentBelt, currentStripes, promotions } = useTrainingStore();
-  const { user, profile } = useAuthStore();
   const [filter, setFilter] = useState<Filter>("all");
 
   const filtered = sessions.filter((s) =>
@@ -53,7 +51,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-zinc-100">TrainLog</h1>
+            <h1 className="text-xl font-bold tracking-tight text-zinc-100">Grapplr</h1>
             <span className="text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
               EARLY ACCESS
             </span>
@@ -62,22 +60,16 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-2">
           <Link
+            href="/tournaments/add"
+            className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 active:scale-[0.97] text-zinc-300 font-semibold rounded-xl transition-all px-3 py-2.5 text-sm"
+          >
+            <Trophy size={14} /> Comp
+          </Link>
+          <Link
             href="/add"
             className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 active:scale-[0.97] text-white font-semibold rounded-xl transition-all px-4 py-2.5 text-sm"
           >
             <Plus size={15} strokeWidth={2.5} /> Log
-          </Link>
-          <Link
-            href="/account"
-            className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors relative"
-          >
-            {user && profile ? (
-              <span className="text-sm font-bold text-red-400">
-                {(profile.display_name || profile.username)[0].toUpperCase()}
-              </span>
-            ) : (
-              <CircleUser size={18} className="text-zinc-400" />
-            )}
           </Link>
         </div>
       </div>
