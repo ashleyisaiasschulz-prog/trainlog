@@ -16,9 +16,9 @@ export default function Navbar() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 safe-area-pb">
-      {/* Frosted glass bar */}
-      <div className="bg-zinc-950/90 backdrop-blur-xl border-t border-white/[0.06]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50">
+      {/* Frosted glass bar — background extends into home-indicator safe area */}
+      <div className="bg-zinc-950/90 backdrop-blur-xl border-t border-white/[0.06] safe-area-pb">
         <div className="flex items-center max-w-md mx-auto px-3 h-16">
           {NAV.map((item, i) => {
             if (!item) {

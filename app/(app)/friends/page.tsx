@@ -38,36 +38,59 @@ export default function FriendsPage() {
   const loadFriends = async () => {
     if (!user) return;
 
-    // Accepted friendships — join BOTH sides, then pick the "other" person
+    // Step 1: accepted friendship rows (IDs only, no JOIN — avoids RLS null issues)
     const { data } = await sb
       .from("friendships")
-      .select(`id, requester_id, addressee_id,
-        requester:profiles!friendships_requester_id_fkey(${PROFILE_COLS}),
-        addressee:profiles!friendships_addressee_id_fkey(${PROFILE_COLS})`)
+      .select("id, requester_id, addressee_id")
       .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
       .eq("status", "accepted");
 
-    const rawMapped: FriendEntry[] = (data ?? []).map((row: any) => ({
-      id: row.id,
-      profiles: row.requester_id === user.id ? row.addressee : row.requester,
-    }));
-    // Dedupe: a pair may have a friendship row in each direction
+    // Pick the "other" person's ID, dedupe
     const seen = new Set<string>();
-    const mapped = rawMapped.filter(f => {
-      if (!f.profiles || seen.has(f.profiles.id)) return false;
-      seen.add(f.profiles.id);
-      return true;
-    });
+    const entries: Array<{ id: string; friendId: string }> = [];
+    for (const row of (data ?? [] as any[])) {
+      const friendId = row.requester_id === user.id ? row.addressee_id : row.requester_id;
+      if (!seen.has(friendId)) {
+        seen.add(friendId);
+        entries.push({ id: row.id, friendId });
+      }
+    }
 
-    // Incoming pending requests → show the requester (the sender)
+    // Step 2: fetch profiles separately so an update to belt/stripes doesn't break the JOIN
+    const profileMap = new Map<string, Profile>();
+    if (entries.length > 0) {
+      const { data: profileData } = await sb
+        .from("profiles")
+        .select(PROFILE_COLS)
+        .in("id", entries.map(e => e.friendId));
+      for (const p of (profileData as Profile[] ?? [])) profileMap.set(p.id, p);
+    }
+
+    const mapped: FriendEntry[] = entries.map(e => ({
+      id: e.id,
+      profiles: profileMap.get(e.friendId) as Profile,
+    }));
+
+    // Incoming pending requests — also use separate profile fetch
     const { data: pendingData } = await sb
       .from("friendships")
-      .select(`id, requester:profiles!friendships_requester_id_fkey(${PROFILE_COLS})`)
+      .select("id, requester_id")
       .eq("addressee_id", user.id)
       .eq("status", "pending");
 
-    const pendingMapped: FriendEntry[] = (pendingData ?? []).map((row: any) => ({
-      id: row.id, profiles: row.requester,
+    const pendingProfileMap = new Map<string, Profile>();
+    const pendingIds = (pendingData ?? [] as any[]).map((r: any) => r.requester_id);
+    if (pendingIds.length > 0) {
+      const { data: pendingProfiles } = await sb
+        .from("profiles")
+        .select(PROFILE_COLS)
+        .in("id", pendingIds);
+      for (const p of (pendingProfiles as Profile[] ?? [])) pendingProfileMap.set(p.id, p);
+    }
+
+    const pendingMapped: FriendEntry[] = (pendingData ?? [] as any[]).map((row: any) => ({
+      id: row.id,
+      profiles: pendingProfileMap.get(row.requester_id) as Profile,
     }));
 
     setFriends(mapped);
