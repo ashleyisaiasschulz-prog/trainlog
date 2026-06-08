@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "TrainLog – BJJ Tracker",
-    short_name: "TrainLog",
+    name: "Grapplr – BJJ Tracker",
+    short_name: "Grapplr",
     description: "Track your Brazilian Jiu-Jitsu progress. Connect with your gym.",
     start_url: "/dashboard",
     display: "standalone",

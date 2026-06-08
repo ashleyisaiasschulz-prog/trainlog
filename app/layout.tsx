@@ -8,13 +8,13 @@ import PWARegister from "@/components/PWARegister";
 const geist = Geist({ variable: "--font-sans", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "TrainLog – BJJ Training Tracker",
+  title: "Grapplr – BJJ Training Tracker",
   description: "Track your Brazilian Jiu-Jitsu progress. Connect with your gym.",
-  applicationName: "TrainLog",
+  applicationName: "Grapplr",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "TrainLog",
+    title: "Grapplr",
   },
   icons: {
     icon: "/icon.png",
