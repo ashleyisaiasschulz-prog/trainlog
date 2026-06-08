@@ -131,9 +131,17 @@
   }
 }
 
-/* ── Safe area ── */
+/* ── Safe area (iPhone notch + home indicator) ── */
 .safe-area-pb {
   padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+}
+/* Top padding that respects the iPhone status bar / notch */
+.safe-area-pt {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+/* Bottom clearance equal to the fixed navbar height + home indicator */
+.nav-clearance {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
 }
 
 /* ── Scrollbar ── */

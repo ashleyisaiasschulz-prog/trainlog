@@ -74,7 +74,7 @@ function AddPageInner() {
   };
 
   return (
-    <div className="px-4 pt-5 pb-24 flex flex-col gap-4">
+    <div className="px-4 pt-5 pb-28 flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/dashboard" className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 transition-colors">

@@ -119,7 +119,7 @@ export default function FriendsPage() {
 
   if (!user) {
     return (
-      <div className="px-4 pt-5 pb-24 flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="px-4 pt-5 pb-28 flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Users size={40} className="text-zinc-700" />
         <p className="text-zinc-400 font-medium text-center">Sign in to connect with training partners</p>
         <Link href="/login" className="bg-red-600 hover:bg-red-500 text-white font-semibold px-6 py-3 rounded-xl flex items-center gap-2">
@@ -130,7 +130,7 @@ export default function FriendsPage() {
   }
 
   return (
-    <div className="px-4 pt-5 pb-24 space-y-5">
+    <div className="px-4 pt-5 pb-28 space-y-5">
       <h1 className="text-xl font-bold tracking-tight text-zinc-100">Friends</h1>
 
       {/* Search */}

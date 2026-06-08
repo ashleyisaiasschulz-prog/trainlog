@@ -95,7 +95,7 @@ export default function StatsPage() {
   }
 
   return (
-    <div className="px-4 pt-5 pb-24 flex flex-col gap-4">
+    <div className="px-4 pt-5 pb-28 flex flex-col gap-4">
       <h1 className="text-xl font-bold tracking-tight text-zinc-100">Statistics</h1>
 
       {/* ── Summary strip ── */}

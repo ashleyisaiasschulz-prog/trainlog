@@ -62,7 +62,7 @@ export default function GroupsPage() {
 
   if (!user) {
     return (
-      <div className="px-4 pt-5 pb-24 flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="px-4 pt-5 pb-28 flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Users size={40} className="text-zinc-700" />
         <p className="text-zinc-400 font-medium text-center">Sign in to access groups</p>
         <Link href="/login" className="bg-red-600 hover:bg-red-500 text-white font-semibold px-6 py-3 rounded-xl flex items-center gap-2">
@@ -73,7 +73,7 @@ export default function GroupsPage() {
   }
 
   return (
-    <div className="px-4 pt-5 pb-24 space-y-5">
+    <div className="px-4 pt-5 pb-28 space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold tracking-tight text-zinc-100">Groups</h1>
         <div className="flex gap-2">

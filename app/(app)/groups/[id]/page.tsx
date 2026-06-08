@@ -118,11 +118,11 @@ export default function GroupDetailPage() {
   const goingCount = (sid: string) => rsvps.filter(r => r.trainer_session_id === sid && r.status === "going").length;
 
   if (!group) {
-    return <div className="px-4 pt-5 pb-24 text-center text-zinc-500 text-sm">Loading…</div>;
+    return <div className="px-4 pt-5 pb-28 text-center text-zinc-500 text-sm">Loading…</div>;
   }
 
   return (
-    <div className="px-4 pt-5 pb-24 space-y-5">
+    <div className="px-4 pt-5 pb-28 space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/groups" className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 transition-colors">

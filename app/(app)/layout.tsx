@@ -28,7 +28,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col safe-area-pt">
       <div className="flex-1 max-w-md mx-auto w-full">{children}</div>
       <InstallBanner />
       <Navbar />

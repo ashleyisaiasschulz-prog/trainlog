@@ -26,7 +26,7 @@ export default function SchedulePage() {
   };
 
   return (
-    <div className="px-4 pt-5 pb-24 flex flex-col gap-4">
+    <div className="px-4 pt-5 pb-28 flex flex-col gap-4">
 
       {/* ── Header ── */}
       <div className="flex items-center gap-3">
