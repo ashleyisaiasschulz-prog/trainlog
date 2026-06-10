@@ -37,7 +37,7 @@ const isTomorrow = (date: string) => date === format(addDays(new Date(), 1), "yy
 
 function dayLabel(date: string) {
   if (isToday(date))    return "Today";
-  if (isTomorrow(date)) return "Tomorrow";
+  if (isTomorrow(date)) return "Tmrw";
   return format(new Date(date + "T12:00:00"), "EEE");
 }
 
@@ -95,7 +95,7 @@ export default function ScheduleWidget() {
           return (
             <div key={`${schedule.id}-${date}`} className={`flex items-center gap-3 px-4 py-3 ${missed ? "opacity-40" : ""}`}>
               {/* Day badge */}
-              <div className={`w-12 text-center shrink-0 ${today ? "text-red-400" : past ? "text-zinc-700" : "text-zinc-400"}`}>
+              <div className={`w-14 text-center shrink-0 ${today ? "text-red-400" : past ? "text-zinc-700" : "text-zinc-400"}`}>
                 <p className="text-[9px] font-semibold uppercase tracking-widest leading-none">{dayLabel(date)}</p>
                 <p className="text-base font-bold leading-snug tabular-nums">
                   {format(new Date(date + "T12:00:00"), "d")}

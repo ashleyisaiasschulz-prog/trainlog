@@ -87,7 +87,13 @@ export default function StatsPage() {
   const streak      = computeStreak(sessions);
   const avgInten    = sessions.length > 0
     ? (sessions.reduce((a, s) => a + s.intensity, 0) / sessions.length).toFixed(1) : "—";
-  const totalHours  = Math.round(sessions.reduce((a, s) => a + s.duration, 0) / 60);
+  const fmtHours = (mins: number) => {
+    const h = mins / 60;
+    if (h === 0) return "0h";
+    return h % 1 === 0 ? `${h}h` : `${h.toFixed(1)}h`;
+  };
+
+  const totalHours  = fmtHours(sessions.reduce((a, s) => a + s.duration, 0));
   const avgMinutes  = sessions.length > 0
     ? Math.round(sessions.reduce((a, s) => a + s.duration, 0) / sessions.length) : 0;
 
@@ -106,14 +112,26 @@ export default function StatsPage() {
   })();
 
   // This week
-  const weekStart       = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const weekStart        = startOfWeek(new Date(), { weekStartsOn: 1 });
   const thisWeekSessions = sessions.filter(s => new Date(s.date + "T12:00:00") >= weekStart);
-  const thisWeekHours   = Math.round(thisWeekSessions.reduce((a, s) => a + s.duration, 0) / 60);
+  const thisWeekHours    = fmtHours(thisWeekSessions.reduce((a, s) => a + s.duration, 0));
 
   // This month
-  const monthStart       = startOfMonth(new Date());
+  const monthStart        = startOfMonth(new Date());
   const thisMonthSessions = sessions.filter(s => new Date(s.date + "T12:00:00") >= monthStart);
-  const thisMonthHours   = Math.round(thisMonthSessions.reduce((a, s) => a + s.duration, 0) / 60);
+  const thisMonthHours    = fmtHours(thisMonthSessions.reduce((a, s) => a + s.duration, 0));
+
+  // Avg sessions per month (based on first session date)
+  const avgPerMonth = (() => {
+    if (sessions.length === 0) return 0;
+    const sorted = [...sessions].sort((a, b) => a.date.localeCompare(b.date));
+    const first = new Date(sorted[0].date + "T12:00:00");
+    const monthsActive = Math.max(1,
+      (new Date().getFullYear() - first.getFullYear()) * 12 +
+      (new Date().getMonth() - first.getMonth()) + 1
+    );
+    return (sessions.length / monthsActive).toFixed(1);
+  })();
 
   if (sessions.length === 0 && tournaments.length === 0) {
     return (
@@ -156,13 +174,16 @@ export default function StatsPage() {
           <div className="flex items-end gap-3">
             <div>
               <p className="text-3xl font-bold text-zinc-100 tabular-nums leading-none">{thisMonthSessions.length}</p>
-              <p className="text-[11px] text-zinc-600 mt-1">sessions</p>
+              <p className="text-[11px] text-zinc-600 mt-1">session{thisMonthSessions.length !== 1 ? "s" : ""}</p>
             </div>
             <div className="mb-0.5">
-              <p className="text-xl font-bold text-zinc-400 tabular-nums leading-none">{thisMonthHours}h</p>
+              <p className="text-xl font-bold text-zinc-400 tabular-nums leading-none">{thisMonthHours}</p>
               <p className="text-[11px] text-zinc-600 mt-1">on the mat</p>
             </div>
           </div>
+          <p className="text-[11px] text-zinc-600 mt-3 pt-3 border-t border-zinc-800">
+            Avg <span className="text-zinc-400 font-semibold">{avgPerMonth}</span> sessions / month
+          </p>
         </div>
         {/* This week */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
@@ -170,10 +191,10 @@ export default function StatsPage() {
           <div className="flex items-end gap-3">
             <div>
               <p className="text-3xl font-bold text-zinc-100 tabular-nums leading-none">{thisWeekSessions.length}</p>
-              <p className="text-[11px] text-zinc-600 mt-1">sessions</p>
+              <p className="text-[11px] text-zinc-600 mt-1">session{thisWeekSessions.length !== 1 ? "s" : ""}</p>
             </div>
             <div className="mb-0.5">
-              <p className="text-xl font-bold text-zinc-400 tabular-nums leading-none">{thisWeekHours}h</p>
+              <p className="text-xl font-bold text-zinc-400 tabular-nums leading-none">{thisWeekHours}</p>
               <p className="text-[11px] text-zinc-600 mt-1">on the mat</p>
             </div>
           </div>
@@ -184,7 +205,7 @@ export default function StatsPage() {
           <div className="flex items-end gap-3">
             <div>
               <p className="text-3xl font-bold text-red-500 tabular-nums leading-none">{dayStreak}</p>
-              <p className="text-[11px] text-zinc-600 mt-1">days in a row</p>
+              <p className="text-[11px] text-zinc-600 mt-1">{dayStreak === 1 ? "day" : "days"} in a row</p>
             </div>
             <div className="mb-0.5">
               <p className="text-xl font-bold text-zinc-400 tabular-nums leading-none">{streak}w</p>
