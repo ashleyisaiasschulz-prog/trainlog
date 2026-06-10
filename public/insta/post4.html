@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; height: 1080px; overflow: hidden;
+    background: #09090b;
+    font-family: 'Inter', -apple-system, sans-serif;
+    display: flex; flex-direction: column;
+    padding: 80px; position: relative;
+  }
+  .top-label { font-size: 13px; font-weight: 600; letter-spacing: 4px; color: #71717a; text-transform: uppercase; margin-bottom: 40px; }
+  .top-label span { color: #ef4444; }
+  h1 { font-size: 80px; font-weight: 900; color: #f4f4f5; line-height: 0.95; letter-spacing: -4px; margin-bottom: 24px; }
+  h1 em { color: #ef4444; font-style: normal; }
+  .desc { font-size: 22px; color: #52525b; max-width: 600px; line-height: 1.5; margin-bottom: 36px; }
+
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; max-width: 780px; }
+  .stat-card {
+    background: #18181b; border: 1px solid #27272a;
+    border-radius: 20px; padding: 28px 24px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .stat-lbl { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 3px; color: #52525b; }
+  .stat-val { font-size: 52px; font-weight: 900; color: #f4f4f5; letter-spacing: -3px; line-height: 1; }
+  .stat-val.red { color: #ef4444; }
+  .stat-sub { font-size: 13px; color: #52525b; margin-top: 4px; }
+
+  /* Position bars */
+  .pos-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+  .pos-row { display: flex; flex-direction: column; gap: 5px; }
+  .pos-header { display: flex; justify-content: space-between; }
+  .pos-name { font-size: 12px; font-weight: 500; color: #a1a1aa; }
+  .pos-count { font-size: 12px; font-weight: 700; color: #f4f4f5; }
+  .bar-track { height: 6px; background: #27272a; border-radius: 99px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 99px; background: #ef4444; }
+
+  .wide-card {
+    background: #18181b; border: 1px solid #27272a;
+    border-radius: 20px; padding: 24px 28px;
+    max-width: 780px; margin-top: 16px;
+    display: flex; gap: 40px; align-items: center;
+  }
+  .streak-num { font-size: 64px; font-weight: 900; color: #ef4444; letter-spacing: -4px; line-height: 1; }
+  .streak-info { display: flex; flex-direction: column; gap: 4px; }
+  .streak-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 3px; color: #52525b; }
+  .streak-desc { font-size: 16px; color: #71717a; }
+  .streak-dots { display: flex; gap: 6px; margin-left: auto; }
+  .sdot { width: 28px; height: 28px; border-radius: 7px; background: #27272a; }
+  .sdot.on { background: #ef4444; }
+
+  /* Submissions section */
+  .sub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 780px; margin-top: 16px; }
+  .sub-card {
+    background: #18181b; border: 1px solid #27272a;
+    border-radius: 20px; padding: 24px 24px;
+  }
+  .sub-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 3px; margin-bottom: 16px;
+  }
+  .sub-title.given { color: #10b981; }
+  .sub-title.received { color: #ef4444; }
+  .sub-list { display: flex; flex-direction: column; gap: 10px; }
+  .sub-row { display: flex; align-items: center; gap: 10px; }
+  .sub-rank { font-size: 12px; font-weight: 700; color: #3f3f46; width: 16px; }
+  .sub-name { font-size: 14px; font-weight: 500; color: #d4d4d8; flex: 1; }
+  .sub-count { font-size: 14px; font-weight: 700; }
+  .sub-count.g { color: #10b981; }
+  .sub-count.r { color: #ef4444; }
+  .sub-bar-wrap { width: 60px; height: 5px; background: #27272a; border-radius: 99px; overflow: hidden; }
+  .sub-bar { height: 100%; border-radius: 99px; }
+  .sub-bar.g { background: #10b981; }
+  .sub-bar.r { background: #ef4444; }
+
+  .bottom { position: absolute; bottom: 72px; left: 80px; right: 80px; display: flex; align-items: center; justify-content: space-between; }
+  .brand { font-size: 30px; font-weight: 900; color: #f4f4f5; letter-spacing: -1px; }
+  .brand span { color: #ef4444; }
+  .access { font-size: 12px; font-weight: 600; letter-spacing: 3px; color: #ef4444; text-transform: uppercase; border: 1px solid rgba(239,68,68,0.3); padding: 8px 20px; border-radius: 100px; }
+</style>
+</head>
+<body>
+  <div class="top-label">Grapplr · <span>Stats & Progress</span></div>
+  <h1>Know your<br><em>game.</em></h1>
+  <p class="desc">Sessions, hours, streaks and your most trained positions — all tracked.</p>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-lbl">Sessions</span>
+      <span class="stat-val">142</span>
+      <span class="stat-sub">+8 this month</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-lbl">Hours on mat</span>
+      <span class="stat-val">213</span>
+      <span class="stat-sub">avg 90 min</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-lbl">Top positions</span>
+      <div class="pos-list">
+        <div class="pos-row">
+          <div class="pos-header"><span class="pos-name">Guard</span><span class="pos-count">85</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width:85%"></div></div>
+        </div>
+        <div class="pos-row">
+          <div class="pos-header"><span class="pos-name">Back Control</span><span class="pos-count">61</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width:61%"></div></div>
+        </div>
+        <div class="pos-row">
+          <div class="pos-header"><span class="pos-name">Half Guard</span><span class="pos-count">44</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width:44%"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wide-card">
+    <div>
+      <div class="streak-label">Current streak</div>
+      <div class="streak-num">12</div>
+      <div class="streak-desc">days in a row</div>
+    </div>
+    <div class="streak-dots">
+      <div class="sdot on"></div><div class="sdot on"></div><div class="sdot on"></div>
+      <div class="sdot on"></div><div class="sdot on"></div><div class="sdot on"></div>
+      <div class="sdot on"></div><div class="sdot"></div>
+    </div>
+  </div>
+
+  <div class="sub-grid">
+    <div class="sub-card">
+      <div class="sub-title given">Submissions Given</div>
+      <div class="sub-list">
+        <div class="sub-row">
+          <span class="sub-rank">1</span>
+          <span class="sub-name">Rear Naked Choke</span>
+          <div class="sub-bar-wrap"><div class="sub-bar g" style="width:100%"></div></div>
+          <span class="sub-count g">38</span>
+        </div>
+        <div class="sub-row">
+          <span class="sub-rank">2</span>
+          <span class="sub-name">Armbar</span>
+          <div class="sub-bar-wrap"><div class="sub-bar g" style="width:71%"></div></div>
+          <span class="sub-count g">27</span>
+        </div>
+        <div class="sub-row">
+          <span class="sub-rank">3</span>
+          <span class="sub-name">Triangle</span>
+          <div class="sub-bar-wrap"><div class="sub-bar g" style="width:47%"></div></div>
+          <span class="sub-count g">18</span>
+        </div>
+      </div>
+    </div>
+    <div class="sub-card">
+      <div class="sub-title received">Submissions Received</div>
+      <div class="sub-list">
+        <div class="sub-row">
+          <span class="sub-rank">1</span>
+          <span class="sub-name">Heel Hook</span>
+          <div class="sub-bar-wrap"><div class="sub-bar r" style="width:100%"></div></div>
+          <span class="sub-count r">22</span>
+        </div>
+        <div class="sub-row">
+          <span class="sub-rank">2</span>
+          <span class="sub-name">Guillotine</span>
+          <div class="sub-bar-wrap"><div class="sub-bar r" style="width:64%"></div></div>
+          <span class="sub-count r">14</span>
+        </div>
+        <div class="sub-row">
+          <span class="sub-rank">3</span>
+          <span class="sub-name">Kimura</span>
+          <div class="sub-bar-wrap"><div class="sub-bar r" style="width:41%"></div></div>
+          <span class="sub-count r">9</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <span class="brand">Grapplr<span>.</span></span>
+    <span class="access">Early Access</span>
+  </div>
+</body>
+</html>

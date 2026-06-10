@@ -4,14 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { LogOut, Shield, LogIn, UserPlus, Sun, Moon, Pencil, Check, X } from "lucide-react";
+import { LogOut, Shield, LogIn, UserPlus, Sun, Moon, Pencil, Check, X, Bell, BellOff } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "@/hooks/useTheme";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 export default function AccountPage() {
   const router = useRouter();
   const { user, profile, signOut, refreshProfile } = useAuthStore();
   const { isDark, toggle: toggleTheme } = useTheme();
+  const { status: pushStatus, loading: pushLoading, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications();
   const sb = createClient();
   const [saving, setSaving] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -204,6 +206,53 @@ export default function AccountPage() {
           </div>
         </button>
       </div>
+
+      {/* Notifications */}
+      {pushStatus !== "unsupported" && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Notifications</p>
+          {pushStatus === "denied" ? (
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-zinc-800 flex items-center justify-center shrink-0">
+                <BellOff size={18} className="text-zinc-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-zinc-400">Notifications blocked</p>
+                <p className="text-xs text-zinc-600">Enable in browser settings to get training reminders</p>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={pushStatus === "granted" ? pushUnsubscribe : pushSubscribe}
+              disabled={pushLoading}
+              className="w-full flex items-center gap-3 text-left"
+            >
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                pushStatus === "granted" ? "bg-red-500/10 text-red-400" : "bg-zinc-800 text-zinc-400"
+              }`}>
+                {pushStatus === "granted" ? <Bell size={18} /> : <BellOff size={18} />}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-zinc-200">
+                  {pushStatus === "granted" ? "Training Reminders On" : "Training Reminders"}
+                </p>
+                <p className="text-xs text-zinc-600">
+                  {pushStatus === "granted"
+                    ? "You'll get notified on training days"
+                    : "Get notified when it's time to train"}
+                </p>
+              </div>
+              <div className={`w-11 h-6 rounded-full transition-colors shrink-0 ${
+                pushStatus === "granted" ? "bg-red-500" : "bg-zinc-700"
+              }`}>
+                <div className={`w-5 h-5 rounded-full bg-white mt-0.5 transition-transform ${
+                  pushStatus === "granted" ? "translate-x-5" : "translate-x-0.5"
+                }`} />
+              </div>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Sign out */}
       <button onClick={handleSignOut}

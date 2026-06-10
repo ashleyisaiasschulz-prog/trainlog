@@ -52,7 +52,8 @@ export default function OnboardingPage() {
     });
 
     await refreshProfile();
-    router.replace("/dashboard");
+    // Full page reload so loadFromCloud re-fetches the newly inserted belt promotion
+    window.location.assign("/dashboard");
   };
 
   return (

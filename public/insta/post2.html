@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; height: 1080px; overflow: hidden;
+    background: #09090b;
+    font-family: 'Inter', -apple-system, sans-serif;
+    display: flex; flex-direction: column;
+    padding: 80px; position: relative;
+  }
+  .top-label { font-size: 13px; font-weight: 600; letter-spacing: 4px; color: #71717a; text-transform: uppercase; margin-bottom: 40px; }
+  .top-label span { color: #ef4444; }
+  h1 { font-size: 100px; font-weight: 900; color: #f4f4f5; line-height: 0.95; letter-spacing: -5px; margin-bottom: 32px; }
+  h1 em { color: #ef4444; font-style: normal; }
+  .desc { font-size: 26px; color: #52525b; max-width: 600px; line-height: 1.6; margin-bottom: 56px; }
+
+  .comp-card {
+    background: #18181b; border: 1px solid #27272a;
+    border-radius: 20px; padding: 32px; max-width: 780px;
+    display: flex; flex-direction: column; gap: 24px;
+  }
+  .comp-header { display: flex; align-items: flex-start; justify-content: space-between; }
+  .comp-name { font-size: 22px; font-weight: 700; color: #f4f4f5; margin-bottom: 6px; }
+  .comp-meta { font-size: 14px; color: #52525b; }
+  .placement {
+    font-size: 13px; font-weight: 700; padding: 6px 16px; border-radius: 10px;
+    background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid rgba(245,158,11,0.2);
+  }
+  .matches { display: flex; flex-direction: column; gap: 10px; }
+  .match-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; background: #09090b; border-radius: 12px; }
+  .result {
+    font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 4px 10px; border-radius: 6px; min-width: 44px; text-align: center;
+  }
+  .win { background: rgba(16,185,129,0.1); color: #10b981; }
+  .loss { background: rgba(239,68,68,0.1); color: #ef4444; }
+  .opp { font-size: 15px; font-weight: 500; color: #d4d4d8; flex: 1; }
+  .sub { font-size: 13px; color: #52525b; }
+  .stats-row { display: flex; gap: 32px; padding-top: 8px; border-top: 1px solid #27272a; }
+  .stat { display: flex; flex-direction: column; gap: 4px; }
+  .stat-val { font-size: 28px; font-weight: 800; color: #f4f4f5; letter-spacing: -1px; }
+  .stat-val span { color: #ef4444; }
+  .stat-lbl { font-size: 12px; font-weight: 500; color: #52525b; text-transform: uppercase; letter-spacing: 2px; }
+
+  .bottom { position: absolute; bottom: 72px; left: 80px; right: 80px; display: flex; align-items: center; justify-content: space-between; }
+  .brand { font-size: 30px; font-weight: 900; color: #f4f4f5; letter-spacing: -1px; }
+  .brand span { color: #ef4444; }
+  .access { font-size: 12px; font-weight: 600; letter-spacing: 3px; color: #ef4444; text-transform: uppercase; border: 1px solid rgba(239,68,68,0.3); padding: 8px 20px; border-radius: 100px; }
+</style>
+</head>
+<body>
+  <div class="top-label">Grapplr · <span>Competition Tracking</span></div>
+  <h1>Every comp.<br><em>Every win.</em></h1>
+  <p class="desc">Log tournaments, track matches and build your competition history.</p>
+
+  <div class="comp-card">
+    <div class="comp-header">
+      <div>
+        <div class="comp-name">ADCC Regional 2024</div>
+        <div class="comp-meta">Berlin · No-Gi · -77 kg</div>
+      </div>
+      <div class="placement">Gold</div>
+    </div>
+    <div class="matches">
+      <div class="match-row">
+        <span class="result win">Win</span>
+        <span class="opp">vs. M. Fischer</span>
+        <span class="sub">Rear Naked Choke</span>
+      </div>
+      <div class="match-row">
+        <span class="result win">Win</span>
+        <span class="opp">vs. T. Bauer</span>
+        <span class="sub">Points · 8–2</span>
+      </div>
+      <div class="match-row">
+        <span class="result win">Win</span>
+        <span class="opp">vs. K. Müller</span>
+        <span class="sub">Heel Hook</span>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat"><span class="stat-val">3<span>/3</span></span><span class="stat-lbl">Matches</span></div>
+      <div class="stat"><span class="stat-val" style="color:#f59e0b">Gold</span><span class="stat-lbl">Placement</span></div>
+      <div class="stat"><span class="stat-val">2</span><span class="stat-lbl">Submissions</span></div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <span class="brand">Grapplr<span>.</span></span>
+    <span class="access">Early Access</span>
+  </div>
+</body>
+</html>

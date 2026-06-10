@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; height: 1080px; overflow: hidden;
+    background: #09090b;
+    font-family: 'Inter', -apple-system, sans-serif;
+    display: flex; flex-direction: column;
+    padding: 80px; position: relative;
+  }
+  .top-label { font-size: 13px; font-weight: 600; letter-spacing: 4px; color: #71717a; text-transform: uppercase; margin-bottom: 40px; }
+  .top-label span { color: #ef4444; }
+  h1 { font-size: 100px; font-weight: 900; color: #f4f4f5; line-height: 0.95; letter-spacing: -5px; margin-bottom: 32px; }
+  h1 em { color: #ef4444; font-style: normal; }
+  .desc { font-size: 26px; color: #52525b; max-width: 600px; line-height: 1.6; margin-bottom: 56px; }
+
+  /* Belt progression */
+  .belt-section { display: flex; flex-direction: column; gap: 16px; max-width: 780px; }
+
+  .belt-row {
+    background: #18181b; border: 1px solid #27272a;
+    border-radius: 20px; padding: 24px 28px;
+    display: flex; align-items: center; gap: 20px;
+  }
+  .belt-row.active { border-color: #ef4444; background: #1a0f0f; }
+
+  .belt-bar { width: 56px; height: 22px; border-radius: 5px; flex-shrink: 0; position: relative; overflow: hidden; }
+  .belt-bar::after { content: ''; position: absolute; right: 4px; top: 3px; bottom: 3px; width: 10px; background: rgba(255,255,255,0.9); border-radius: 2px; }
+  .white { background: #e4e4e7; }
+  .blue { background: #2563eb; }
+  .purple { background: #7c3aed; }
+  .brown { background: #78350f; }
+  .black-b { background: #27272a; border: 1px solid #3f3f46; }
+
+  .belt-info { flex: 1; }
+  .belt-name { font-size: 18px; font-weight: 700; color: #f4f4f5; margin-bottom: 4px; }
+  .belt-time { font-size: 13px; color: #52525b; }
+  .belt-time.active-t { color: #ef4444; }
+
+  .stripes { display: flex; gap: 5px; }
+  .stripe { width: 14px; height: 14px; border-radius: 3px; background: #27272a; }
+  .stripe.on { background: #ef4444; }
+
+  .current-badge {
+    font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    color: #ef4444; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);
+    padding: 5px 12px; border-radius: 8px;
+  }
+
+  .bottom { position: absolute; bottom: 72px; left: 80px; right: 80px; display: flex; align-items: center; justify-content: space-between; }
+  .brand { font-size: 30px; font-weight: 900; color: #f4f4f5; letter-spacing: -1px; }
+  .brand span { color: #ef4444; }
+  .access { font-size: 12px; font-weight: 600; letter-spacing: 3px; color: #ef4444; text-transform: uppercase; border: 1px solid rgba(239,68,68,0.3); padding: 8px 20px; border-radius: 100px; }
+</style>
+</head>
+<body>
+  <div class="top-label">Grapplr · <span>Belt Tracker</span></div>
+  <h1>Stripe<br><em>by stripe.</em></h1>
+  <p class="desc">Log every promotion. Track time in each belt. See how far you've come.</p>
+
+  <div class="belt-section">
+    <div class="belt-row">
+      <div class="belt-bar white"></div>
+      <div class="belt-info">
+        <div class="belt-name">White Belt</div>
+        <div class="belt-time">1y 4m</div>
+      </div>
+      <div class="stripes"><div class="stripe on"></div><div class="stripe on"></div><div class="stripe on"></div><div class="stripe on"></div></div>
+    </div>
+    <div class="belt-row">
+      <div class="belt-bar blue"></div>
+      <div class="belt-info">
+        <div class="belt-name">Blue Belt</div>
+        <div class="belt-time">2y 1m</div>
+      </div>
+      <div class="stripes"><div class="stripe on"></div><div class="stripe on"></div><div class="stripe on"></div><div class="stripe on"></div></div>
+    </div>
+    <div class="belt-row active">
+      <div class="belt-bar purple"></div>
+      <div class="belt-info">
+        <div class="belt-name">Purple Belt</div>
+        <div class="belt-time active-t">8m in belt</div>
+      </div>
+      <div class="stripes"><div class="stripe on"></div><div class="stripe on"></div><div class="stripe"></div><div class="stripe"></div></div>
+      <div class="current-badge">Current</div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <span class="brand">Grapplr<span>.</span></span>
+    <span class="access">Early Access</span>
+  </div>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; height: 1080px; overflow: hidden;
+    background: #09090b;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    display: flex; flex-direction: column;
+    padding: 80px;
+    position: relative;
+  }
+
+  .top-label {
+    font-size: 13px; font-weight: 600; letter-spacing: 4px;
+    color: #71717a; text-transform: uppercase; margin-bottom: 40px;
+  }
+  .top-label span { color: #ef4444; }
+
+  h1 {
+    font-size: 100px; font-weight: 900; color: #f4f4f5;
+    line-height: 0.95; letter-spacing: -5px;
+    margin-bottom: 32px;
+  }
+  h1 em { color: #ef4444; font-style: normal; }
+
+  .desc {
+    font-size: 26px; color: #52525b; font-weight: 400;
+    max-width: 600px; line-height: 1.6; margin-bottom: 64px;
+  }
+
+  /* Session cards */
+  .session-list { display: flex; flex-direction: column; gap: 12px; max-width: 640px; }
+
+  .session-card {
+    background: #18181b; border: 1px solid #27272a;
+    border-radius: 20px; padding: 24px 28px;
+    display: flex; align-items: center; gap: 20px;
+  }
+  .s-date {
+    display: flex; flex-direction: column; align-items: center;
+    min-width: 48px;
+  }
+  .s-day { font-size: 11px; font-weight: 600; color: #52525b; text-transform: uppercase; letter-spacing: 2px; }
+  .s-num { font-size: 28px; font-weight: 800; color: #f4f4f5; line-height: 1; }
+  .s-divider { width: 1px; height: 40px; background: #27272a; }
+  .s-info { flex: 1; }
+  .s-title { font-size: 18px; font-weight: 600; color: #f4f4f5; margin-bottom: 6px; }
+  .s-meta { display: flex; gap: 10px; align-items: center; }
+  .s-tag {
+    font-size: 11px; font-weight: 600; padding: 3px 10px;
+    border-radius: 6px; letter-spacing: 0.5px;
+  }
+  .gi { background: rgba(59,130,246,0.1); color: #3b82f6; }
+  .nogi { background: rgba(139,92,246,0.1); color: #8b5cf6; }
+  .s-dur { font-size: 13px; color: #52525b; }
+  .s-intensity {
+    display: flex; gap: 4px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #27272a; }
+  .dot.on { background: #ef4444; }
+
+  /* Bottom bar */
+  .bottom {
+    position: absolute; bottom: 72px; left: 80px; right: 80px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .brand { font-size: 30px; font-weight: 900; color: #f4f4f5; letter-spacing: -1px; }
+  .brand span { color: #ef4444; }
+  .access {
+    font-size: 12px; font-weight: 600; letter-spacing: 3px;
+    color: #ef4444; text-transform: uppercase;
+    border: 1px solid rgba(239,68,68,0.3);
+    padding: 8px 20px; border-radius: 100px;
+  }
+</style>
+</head>
+<body>
+  <div class="top-label">Grapplr · <span>Session Tracking</span></div>
+
+  <h1>Every roll.<br><em>Logged.</em></h1>
+  <p class="desc">Track positions, submissions and intensity after every session.</p>
+
+  <div class="session-list">
+    <div class="session-card">
+      <div class="s-date"><span class="s-day">Mon</span><span class="s-num">12</span></div>
+      <div class="s-divider"></div>
+      <div class="s-info">
+        <div class="s-title">Evening Training</div>
+        <div class="s-meta">
+          <span class="s-tag nogi">No-Gi</span>
+          <span class="s-dur">90 min</span>
+          <span class="s-dur">·</span>
+          <span class="s-dur">Guard · Back Control</span>
+        </div>
+      </div>
+      <div class="s-intensity">
+        <div class="dot on"></div><div class="dot on"></div><div class="dot on"></div><div class="dot on"></div><div class="dot"></div>
+      </div>
+    </div>
+    <div class="session-card">
+      <div class="s-date"><span class="s-day">Wed</span><span class="s-num">14</span></div>
+      <div class="s-divider"></div>
+      <div class="s-info">
+        <div class="s-title">Open Mat</div>
+        <div class="s-meta">
+          <span class="s-tag gi">Gi</span>
+          <span class="s-dur">75 min</span>
+          <span class="s-dur">·</span>
+          <span class="s-dur">Half Guard · Mount</span>
+        </div>
+      </div>
+      <div class="s-intensity">
+        <div class="dot on"></div><div class="dot on"></div><div class="dot on"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+    </div>
+    <div class="session-card">
+      <div class="s-date"><span class="s-day">Fri</span><span class="s-num">16</span></div>
+      <div class="s-divider"></div>
+      <div class="s-info">
+        <div class="s-title">Competition Prep</div>
+        <div class="s-meta">
+          <span class="s-tag nogi">No-Gi</span>
+          <span class="s-dur">120 min</span>
+          <span class="s-dur">·</span>
+          <span class="s-dur">Leg Entanglement</span>
+        </div>
+      </div>
+      <div class="s-intensity">
+        <div class="dot on"></div><div class="dot on"></div><div class="dot on"></div><div class="dot on"></div><div class="dot on"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <span class="brand">Grapplr<span>.</span></span>
+    <span class="access">Early Access</span>
+  </div>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#09090b"/>
+
+  <!-- Outlines (draw first, behind) -->
+  <line x1="256" y1="235" x2="68"  y2="168" stroke="#fca5a5" stroke-width="68" stroke-linecap="round"/>
+  <line x1="256" y1="235" x2="444" y2="168" stroke="#fca5a5" stroke-width="68" stroke-linecap="round"/>
+  <line x1="256" y1="268" x2="100" y2="430" stroke="#fca5a5" stroke-width="68" stroke-linecap="round"/>
+  <line x1="256" y1="268" x2="412" y2="430" stroke="#fca5a5" stroke-width="68" stroke-linecap="round"/>
+
+  <!-- Belt arms (upper left + upper right) -->
+  <line x1="256" y1="235" x2="68"  y2="168" stroke="#ef4444" stroke-width="54" stroke-linecap="round"/>
+  <line x1="256" y1="235" x2="444" y2="168" stroke="#ef4444" stroke-width="54" stroke-linecap="round"/>
+
+  <!-- Belt tails (lower left + lower right) -->
+  <line x1="256" y1="268" x2="100" y2="430" stroke="#ef4444" stroke-width="54" stroke-linecap="round"/>
+  <line x1="256" y1="268" x2="412" y2="430" stroke="#ef4444" stroke-width="54" stroke-linecap="round"/>
+
+  <!-- Rank stripes on left tail (white + black gap) -->
+  <!-- Stripe 1: white -->
+  <line x1="178" y1="349" x2="154" y2="373" stroke="#f4f4f5" stroke-width="54" stroke-linecap="butt"/>
+  <!-- Stripe gap (dark) -->
+  <line x1="170" y1="357" x2="160" y2="367" stroke="#09090b" stroke-width="54" stroke-linecap="butt"/>
+  <!-- Stripe 2: white tip -->
+  <line x1="160" y1="366" x2="130" y2="396" stroke="#09090b" stroke-width="54" stroke-linecap="butt"/>
+
+  <!-- Center knot (dark diamond to show crossing) -->
+  <circle cx="256" cy="252" r="42" fill="#b91c1c"/>
+  <circle cx="256" cy="252" r="26" fill="#991b1b"/>
+</svg>

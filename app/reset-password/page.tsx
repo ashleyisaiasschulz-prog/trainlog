@@ -7,7 +7,7 @@ import { Eye, EyeOff, Lock } from "lucide-react";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const [ready, setReady]       = useState(false); // true once session is confirmed
+  const [ready, setReady]       = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm]   = useState("");
   const [showPw, setShowPw]     = useState(false);
@@ -17,16 +17,29 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     const sb = createClient();
-    // After the auth/callback route exchanges the code, a session is set.
-    // We just need to confirm there IS a session before showing the form.
-    sb.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        setReady(true);
-      } else {
-        // No session → the link is broken/expired
-        router.replace("/forgot-password");
-      }
-    });
+
+    // Supabase sends either:
+    //  a) ?code=XXX (PKCE flow) — need to exchange it for a session
+    //  b) A session already set (came via /auth/callback redirect)
+    const code = new URLSearchParams(window.location.search).get("code");
+
+    if (code) {
+      sb.auth.exchangeCodeForSession(code).then(({ error: err }) => {
+        if (!err) {
+          setReady(true);
+          // Clean URL (remove ?code=… so Back doesn't re-submit)
+          window.history.replaceState({}, "", "/reset-password");
+        } else {
+          router.replace("/forgot-password");
+        }
+      });
+    } else {
+      // Already have a session (e.g. came from /auth/callback)
+      sb.auth.getSession().then(({ data }) => {
+        if (data.session) setReady(true);
+        else router.replace("/forgot-password");
+      });
+    }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,13 +56,16 @@ export default function ResetPasswordPage() {
       return;
     }
     setDone(true);
-    setTimeout(() => router.replace("/dashboard"), 2000);
+    setTimeout(() => window.location.assign("/dashboard"), 2000);
   };
 
   if (!ready && !done) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-950">
-        <p className="text-zinc-500 text-sm">Verifying link…</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-6 h-6 border-2 border-zinc-700 border-t-red-500 rounded-full animate-spin" />
+          <p className="text-zinc-500 text-sm">Verifying link…</p>
+        </div>
       </div>
     );
   }
