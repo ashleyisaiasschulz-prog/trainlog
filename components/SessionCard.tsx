@@ -64,12 +64,12 @@ export default function SessionCard({ session }: Props) {
             {/* Sub stats */}
             {(session.submissionsGiven?.length ?? 0) > 0 && (
               <span className="text-[11px] text-emerald-600 font-medium">
-                +{session.submissionsGiven!.length} sub
+                +{session.submissionsGiven!.length} sub{session.submissionsGiven!.length > 1 ? "s" : ""}
               </span>
             )}
             {(session.submissionsReceived?.length ?? 0) > 0 && (
-              <span className="text-[11px] text-red-800 font-medium">
-                −{session.submissionsReceived!.length}
+              <span className="text-[11px] text-red-500 font-medium">
+                −{session.submissionsReceived!.length} sub{session.submissionsReceived!.length > 1 ? "s" : ""}
               </span>
             )}
           </div>

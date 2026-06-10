@@ -6,7 +6,8 @@ import { useTrainingStore } from "@/store/useTrainingStore";
 import BeltBadge from "@/components/BeltBadge";
 import { Belt, BELT_ORDER, BELT_LABELS, BELT_COLORS, BeltPromotion } from "@/lib/types";
 import { format, differenceInMonths, differenceInYears, differenceInDays } from "date-fns";
-import { Plus, Trash2, Award } from "lucide-react";
+import { Plus, Trash2, Award, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 
 function timeInBeltStr(dateStr: string) {
@@ -51,8 +52,11 @@ export default function BeltPage() {
     <div className="px-4 pt-5 pb-28 flex flex-col gap-4">
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold tracking-tight text-zinc-100">Belt Tracker</h1>
+      <div className="flex items-center gap-3">
+        <Link href="/dashboard" className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 transition-colors">
+          <ArrowLeft size={18} />
+        </Link>
+        <h1 className="text-xl font-bold tracking-tight text-zinc-100 flex-1">Belt Tracker</h1>
         <button onClick={() => setShowForm(v => !v)}
           className="bg-red-600 hover:bg-red-500 active:scale-[0.97] text-white font-semibold rounded-xl transition-all flex items-center gap-1.5 px-4 py-2.5 text-sm">
           <Plus size={15} strokeWidth={2.5} /> Promotion

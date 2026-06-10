@@ -121,16 +121,19 @@ export default function StatsPage() {
   const thisMonthSessions = sessions.filter(s => new Date(s.date + "T12:00:00") >= monthStart);
   const thisMonthHours    = fmtHours(thisMonthSessions.reduce((a, s) => a + s.duration, 0));
 
-  // Avg sessions per month (based on first session date)
+  // Avg sessions per month (total sessions / months since first session)
   const avgPerMonth = (() => {
-    if (sessions.length === 0) return 0;
+    if (sessions.length === 0) return "—";
     const sorted = [...sessions].sort((a, b) => a.date.localeCompare(b.date));
     const first = new Date(sorted[0].date + "T12:00:00");
-    const monthsActive = Math.max(1,
-      (new Date().getFullYear() - first.getFullYear()) * 12 +
-      (new Date().getMonth() - first.getMonth()) + 1
-    );
-    return (sessions.length / monthsActive).toFixed(1);
+    const now = new Date();
+    const totalMonths =
+      (now.getFullYear() - first.getFullYear()) * 12 +
+      (now.getMonth() - first.getMonth());
+    // If less than 1 full month of data, just return count
+    if (totalMonths < 1) return sessions.length.toString();
+    const avg = sessions.length / totalMonths;
+    return avg % 1 === 0 ? avg.toString() : avg.toFixed(1);
   })();
 
   if (sessions.length === 0 && tournaments.length === 0) {
