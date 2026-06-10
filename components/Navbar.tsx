@@ -14,8 +14,8 @@ export default function Navbar() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50">
-      {/* Frosted glass bar — background extends into home-indicator safe area */}
-      <div className="bg-zinc-950/90 backdrop-blur-xl border-t border-white/[0.06] safe-area-pb">
+      {/* Frosted glass bar — adapts to dark/light mode */}
+      <div className="bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border-t border-black/[0.08] dark:border-white/[0.06] safe-area-pb">
         <div className="flex items-center max-w-md mx-auto px-3 h-16">
 
           {/* Home */}
@@ -46,12 +46,12 @@ export default function Navbar() {
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-150 ${
               profileActive
                 ? "bg-red-500 text-white"
-                : "bg-zinc-800 text-zinc-400"
+                : "bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
             }`}>
               {initial}
             </div>
             <span className={`text-[10px] font-medium tracking-wide transition-colors duration-150 ${
-              profileActive ? "text-red-500" : "text-zinc-600"
+              profileActive ? "text-red-500" : "text-zinc-500 dark:text-zinc-600"
             }`}>
               Profile
             </span>
@@ -75,11 +75,11 @@ function NavItem({
         {/* Clone the icon child with size/stroke/color props */}
         {active
           ? <span className="text-red-500 [&>svg]:stroke-[2.5] [&>svg]:w-5 [&>svg]:h-5">{children}</span>
-          : <span className="text-zinc-500 [&>svg]:stroke-[1.75] [&>svg]:w-5 [&>svg]:h-5">{children}</span>
+          : <span className="text-zinc-400 dark:text-zinc-500 [&>svg]:stroke-[1.75] [&>svg]:w-5 [&>svg]:h-5">{children}</span>
         }
       </div>
       <span className={`text-[10px] font-medium tracking-wide transition-colors duration-150 ${
-        active ? "text-red-500" : "text-zinc-600"
+        active ? "text-red-500" : "text-zinc-500 dark:text-zinc-600"
       }`}>
         {label}
       </span>
