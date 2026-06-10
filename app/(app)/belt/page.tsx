@@ -9,14 +9,16 @@ import { format, differenceInMonths, differenceInYears, differenceInDays } from 
 import { Plus, Trash2, Award } from "lucide-react";
 
 
-function timeInBeltStr(from: string) {
-  const days   = differenceInDays(new Date(), new Date(from));
-  const months = differenceInMonths(new Date(), new Date(from));
-  const years  = differenceInYears(new Date(), new Date(from));
-  if (days < 30) return `${days}d`;
-  const y = years > 0 ? `${years}y ` : "";
-  const m = months % 12 > 0 ? `${months % 12}m` : "";
-  return (y + m).trim();
+function timeInBeltStr(dateStr: string) {
+  const from  = new Date(dateStr + "T12:00:00");
+  const days  = differenceInDays(new Date(), from);
+  const years = differenceInYears(new Date(), from);
+  if (days === 0) return "Today";
+  if (years === 0) return `${days}d`;
+  const remainingDays = differenceInDays(new Date(), new Date(
+    from.getFullYear() + years, from.getMonth(), from.getDate()
+  ));
+  return remainingDays > 0 ? `${years}y ${remainingDays}d` : `${years}y`;
 }
 
 const defaultPromo = (): Omit<BeltPromotion, "id"> => ({
@@ -187,7 +189,9 @@ export default function BeltPage() {
                     {p.gym ? ` · ${p.gym}` : ""}
                   </p>
                   {p.coachNote && <p className="text-xs text-zinc-500 mt-1 italic">"{p.coachNote}"</p>}
-                  {i === 0 && <p className="text-[11px] text-red-400 mt-1 font-medium">{timeInBeltStr(p.date)} ago</p>}
+                  <p className={`text-[11px] mt-1 font-medium ${i === 0 ? "text-red-400" : "text-zinc-600"}`}>
+                    {timeInBeltStr(p.date)} ago
+                  </p>
                 </div>
                 <button onClick={() => deletePromotion(p.id)}
                   className="text-zinc-700 hover:text-red-500 transition-colors p-1 shrink-0">

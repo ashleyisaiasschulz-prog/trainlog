@@ -158,7 +158,7 @@ export default function StatsPage() {
               <p className="text-[11px] text-zinc-600 mt-1">sessions</p>
             </div>
             <div className="mb-0.5">
-              <p className="text-xl font-bold text-zinc-400 tabular-nums leading-none">{totalHours}h</p>
+              <p className="text-xl font-bold text-zinc-400 tabular-nums leading-none">{totalHours}</p>
               <p className="text-[11px] text-zinc-600 mt-1">on the mat</p>
             </div>
           </div>

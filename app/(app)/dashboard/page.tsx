@@ -13,14 +13,19 @@ import { useState } from "react";
 function timeInBelt(promotions: { toBelt: string; date: string }[], belt: string) {
   const last = [...promotions].reverse().find((p) => p.toBelt === belt);
   if (!last) return null;
-  const from = new Date(last.date + "T12:00:00");
-  const days   = differenceInDays(new Date(), from);
-  const months = differenceInMonths(new Date(), from);
-  const years  = differenceInYears(new Date(), from);
-  if (days < 30) return `${days}d`;
-  const y = years > 0 ? `${years}y ` : "";
-  const m = months % 12 > 0 ? `${months % 12}m` : "";
-  return (y + m).trim() || "< 1m";
+  return formatBeltTime(last.date);
+}
+
+function formatBeltTime(dateStr: string) {
+  const from  = new Date(dateStr + "T12:00:00");
+  const days  = differenceInDays(new Date(), from);
+  const years = differenceInYears(new Date(), from);
+  if (days === 0) return "Today";
+  if (years === 0) return `${days}d`;
+  const remainingDays = differenceInDays(new Date(), new Date(
+    from.getFullYear() + years, from.getMonth(), from.getDate()
+  ));
+  return remainingDays > 0 ? `${years}y ${remainingDays}d` : `${years}y`;
 }
 
 type Filter = "all" | "gi" | "nogi";
