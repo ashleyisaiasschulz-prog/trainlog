@@ -5,7 +5,7 @@ import { Schedule, CheckIn } from "@/lib/types";
 import { randomId } from "@/lib/id";
 import Link from "next/link";
 import { format, addDays, startOfDay, differenceInCalendarDays } from "date-fns";
-import { Check, X, ChevronRight, Plus, Pencil } from "lucide-react";
+import { Check, X, ChevronRight, Plus } from "lucide-react";
 
 // Recurring: next 5 days only. One-time: next 14 days.
 function getUpcoming(schedules: Schedule[]) {
@@ -124,37 +124,26 @@ export default function ScheduleWidget() {
                 </div>
               </div>
 
-              {/* Edit icon */}
-              <Link href={`/schedule?edit=${schedule.id}`}
-                className="text-zinc-700 hover:text-zinc-400 transition-colors p-1 shrink-0">
-                <Pencil size={13} />
-              </Link>
-
-              {/* Status / CTA */}
+              {/* Status / CTA — Log or X only */}
               {attended ? (
-                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-500">
+                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-500 shrink-0">
                   <Check size={12} strokeWidth={2.5} /> Logged
                 </span>
               ) : missed ? (
-                <span className="flex items-center gap-1 text-[11px] font-medium text-zinc-600">
+                <span className="flex items-center gap-1 text-[11px] font-medium text-zinc-500 shrink-0">
                   <X size={12} /> Missed
                 </span>
-              ) : past ? (
-                <div className="flex gap-1.5 shrink-0">
+              ) : (
+                <div className="flex items-center gap-1.5 shrink-0">
                   <Link href={`/add?scheduleId=${schedule.id}&date=${date}`}
                     className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-1.5 rounded-lg hover:bg-emerald-500/20 transition-colors">
-                    I went
+                    {past ? "I went" : "Log"}
                   </Link>
                   <button onClick={() => markMissed(schedule.id, date)}
-                    className="text-[11px] font-medium text-zinc-600 bg-zinc-800/80 px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors">
-                    Skip
+                    className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                    <X size={13} />
                   </button>
                 </div>
-              ) : (
-                <Link href={`/add?scheduleId=${schedule.id}&date=${date}`}
-                  className="flex items-center gap-0.5 text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors">
-                  Log <ChevronRight size={11} />
-                </Link>
               )}
             </div>
           );
