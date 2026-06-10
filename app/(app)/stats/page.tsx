@@ -8,6 +8,7 @@ import {
 } from "recharts";
 import { format, eachWeekOfInterval, subWeeks, addWeeks, startOfMonth, startOfWeek, subDays } from "date-fns";
 import { computeStreak } from "@/components/StreakWidget";
+import Link from "next/link";
 
 const TOOLTIP_STYLE = {
   contentStyle: { background: "#18181b", border: "1px solid #27272a", borderRadius: 10, fontSize: 12 },
@@ -138,10 +139,20 @@ export default function StatsPage() {
 
   if (sessions.length === 0 && tournaments.length === 0) {
     return (
-      <div className="page flex flex-col items-center justify-center min-h-[50vh] gap-3">
-        <span className="text-4xl">📊</span>
-        <p className="text-sm font-medium text-zinc-400">No data yet</p>
-        <p className="text-xs text-zinc-600">Log sessions to see your stats</p>
+      <div className="px-4 pt-5 pb-28 flex flex-col gap-4">
+        <h1 className="text-xl font-bold tracking-tight text-zinc-100">Statistics</h1>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-12 flex flex-col items-center gap-4 text-center">
+          <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center">
+            <span className="text-3xl">📊</span>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-zinc-300">No data yet</p>
+            <p className="text-xs text-zinc-600 mt-1">Log your first session to start tracking your progress</p>
+          </div>
+          <Link href="/add" className="bg-red-600 hover:bg-red-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-colors">
+            Log First Session
+          </Link>
+        </div>
       </div>
     );
   }

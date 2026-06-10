@@ -61,8 +61,8 @@ export default function RegisterPage() {
       return;
     }
 
-    // Signed in immediately (email confirmation is off) → full nav so session lands everywhere
-    window.location.assign("/dashboard");
+    // Signed in immediately (email confirmation is off) → go to onboarding for belt/gym setup
+    window.location.assign("/onboarding");
   };
 
   return (
@@ -71,7 +71,7 @@ export default function RegisterPage() {
         <div className="text-center mb-8">
           <div className="text-2xl mb-1">🥋</div>
           <h1 className="text-2xl font-bold text-zinc-100">Create account</h1>
-          <p className="text-sm text-zinc-500 mt-1">Join TrainLog</p>
+          <p className="text-sm text-zinc-500 mt-1">Join Grapplr</p>
         </div>
 
         <form onSubmit={handleRegister} className="space-y-4">

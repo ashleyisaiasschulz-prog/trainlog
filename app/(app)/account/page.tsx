@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { LogOut, Shield, LogIn, UserPlus, Sun, Moon } from "lucide-react";
+import { LogOut, Shield, LogIn, UserPlus, Sun, Moon, Pencil, Check, X } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -14,6 +14,9 @@ export default function AccountPage() {
   const { isDark, toggle: toggleTheme } = useTheme();
   const sb = createClient();
   const [saving, setSaving] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editGym, setEditGym]   = useState("");
 
   const togglePrivacy = async (field: "share_stats" | "share_belt" | "share_sessions") => {
     if (!user || !profile) return;
@@ -28,6 +31,24 @@ export default function AccountPage() {
     setSaving(true);
     await sb.from("profiles").update({ is_trainer: !profile.is_trainer }).eq("id", user.id);
     await refreshProfile();
+    setSaving(false);
+  };
+
+  const startEditProfile = () => {
+    setEditName(profile?.display_name || "");
+    setEditGym(profile?.gym || "");
+    setEditingProfile(true);
+  };
+
+  const saveProfile = async () => {
+    if (!user) return;
+    setSaving(true);
+    await sb.from("profiles").update({
+      display_name: editName.trim() || null,
+      gym: editGym.trim() || null,
+    }).eq("id", user.id);
+    await refreshProfile();
+    setEditingProfile(false);
     setSaving(false);
   };
 
@@ -71,17 +92,60 @@ export default function AccountPage() {
       <h1 className="text-xl font-bold tracking-tight text-zinc-100">Account</h1>
 
       {/* Profile card */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center gap-4">
-        <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center text-xl font-bold text-red-400">
-          {(profile?.display_name || profile?.username || "?")[0].toUpperCase()}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-base font-bold text-zinc-100">{profile?.display_name || profile?.username}</p>
-          <p className="text-xs text-zinc-500">@{profile?.username}</p>
-          {profile?.is_trainer && (
-            <span className="inline-block mt-1 text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md">👨‍🏫 Trainer</span>
-          )}
-        </div>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        {editingProfile ? (
+          <div className="space-y-3">
+            <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Edit Profile</p>
+            <div>
+              <label className="text-xs text-zinc-600 block mb-1">Display Name</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                placeholder="Your name"
+                className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-600 block mb-1">Gym / Academy</label>
+              <input
+                type="text"
+                value={editGym}
+                onChange={e => setEditGym(e.target.value)}
+                placeholder="Your gym name"
+                className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setEditingProfile(false)} disabled={saving}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold py-2.5 rounded-xl text-sm transition-colors">
+                <X size={14}/> Cancel
+              </button>
+              <button onClick={saveProfile} disabled={saving}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors">
+                <Check size={14}/> {saving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center text-xl font-bold text-red-400">
+              {(profile?.display_name || profile?.username || "?")[0].toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-bold text-zinc-100">{profile?.display_name || profile?.username}</p>
+              <p className="text-xs text-zinc-500">@{profile?.username}</p>
+              {profile?.gym && <p className="text-xs text-zinc-500 mt-0.5">{profile.gym}</p>}
+              {profile?.is_trainer && (
+                <span className="inline-block mt-1 text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md">👨‍🏫 Trainer</span>
+              )}
+            </div>
+            <button onClick={startEditProfile}
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors shrink-0">
+              <Pencil size={15}/>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Role */}

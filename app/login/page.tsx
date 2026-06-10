@@ -38,7 +38,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <div className="text-2xl mb-1">🥋</div>
           <h1 className="text-2xl font-bold text-zinc-100">Welcome back</h1>
-          <p className="text-sm text-zinc-500 mt-1">Sign in to TrainLog</p>
+          <p className="text-sm text-zinc-500 mt-1">Sign in to Grapplr</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
@@ -69,6 +69,12 @@ export default function LoginPage() {
                 {showPw ? <EyeOff size={16}/> : <Eye size={16}/>}
               </button>
             </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Link href="/forgot-password" className="text-xs text-zinc-500 hover:text-red-400 transition-colors">
+              Forgot password?
+            </Link>
           </div>
 
           {error && <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{error}</p>}
