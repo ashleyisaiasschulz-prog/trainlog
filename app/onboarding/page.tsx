@@ -8,6 +8,7 @@ import BeltBadge from "@/components/BeltBadge";
 import type { Belt } from "@/lib/types";
 import { BELT_ORDER, BELT_LABELS } from "@/lib/types";
 import { ChevronRight } from "lucide-react";
+import { randomId } from "@/lib/id";
 
 const STEPS = ["belt", "info", "done"] as const;
 type Step = (typeof STEPS)[number];
@@ -27,19 +28,29 @@ export default function OnboardingPage() {
   const handleFinish = async () => {
     if (!user) { router.replace("/login"); return; }
     setSaving(true);
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Update profile with belt + optional info
     await sb.from("profiles").update({
       belt,
       stripes,
       gym: gym.trim() || null,
       display_name: displayName.trim() || null,
     }).eq("id", user.id);
-    // Insert first promotion so belt tracker shows time-in-belt
-    await sb.from("belt_promotions").upsert({
+
+    // Insert initial belt promotion so belt tracker knows "time in belt"
+    // Uses the same schema as promoToRow: id, date, from_belt, to_belt, stripes, gym, coach_note
+    await sb.from("belt_promotions").insert({
+      id: randomId(),
       user_id: user.id,
+      date: today,
+      from_belt: belt === "white" ? null : "white", // unknown prior belt
       to_belt: belt,
       stripes,
-      promoted_at: new Date().toISOString().slice(0, 10),
-    }, { onConflict: "user_id,to_belt" });
+      gym: gym.trim() || null,
+      coach_note: "",
+    });
+
     await refreshProfile();
     router.replace("/dashboard");
   };

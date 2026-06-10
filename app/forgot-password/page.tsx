@@ -16,8 +16,9 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     setError("");
     const sb = createClient();
+    // redirectTo → auth/callback which exchanges the PKCE code, then sends to /reset-password
     const { error: err } = await sb.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
     });
     if (err) {
       setError(err.message);
@@ -42,7 +43,8 @@ export default function ForgotPasswordPage() {
             </div>
             <h1 className="text-xl font-bold text-zinc-100">Check your inbox</h1>
             <p className="text-sm text-zinc-400">
-              We sent a password reset link to <span className="text-zinc-200 font-medium">{email}</span>.
+              We sent a password reset link to{" "}
+              <span className="text-zinc-200 font-medium">{email}</span>.
             </p>
             <p className="text-xs text-zinc-600">Didn&apos;t get it? Check your spam folder.</p>
             <Link href="/login"

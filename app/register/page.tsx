@@ -1,18 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Mail } from "lucide-react";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [form, setForm] = useState({
     email: "", password: "", username: "", displayName: "", isTrainer: false,
   });
-  const [error, setError]     = useState("");
-  const [loading, setLoading] = useState(false);
+  const [error, setError]       = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [verifying, setVerifying] = useState(false); // waiting for email confirmation
 
   const set = (k: keyof typeof form, v: string | boolean) =>
     setForm(f => ({ ...f, [k]: v }));
@@ -24,17 +23,16 @@ export default function RegisterPage() {
     const sb = createClient();
     const username = form.username.toLowerCase().replace(/[^a-z0-9_]/g, "");
 
-    // Optional: pre-check username so the user gets told before signup
     const { data: taken } = await sb
       .from("profiles").select("id").eq("username", username).maybeSingle();
     if (taken) { setError("Username already taken — pick another"); setLoading(false); return; }
 
-    // Create the auth user. Username/role go in metadata; AuthProvider
-    // creates the matching profile (single source of truth → no race).
     const { data, error: signErr } = await sb.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
+        // After email confirmation, go to onboarding
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
         data: {
           username,
           display_name: form.displayName || username,
@@ -54,16 +52,59 @@ export default function RegisterPage() {
       return;
     }
 
-    // Supabase obfuscates existing emails: returns a user with empty identities
+    // Supabase obfuscates existing emails
     if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
       setError("This email is already registered. Please sign in instead.");
       setLoading(false);
       return;
     }
 
-    // Signed in immediately (email confirmation is off) → go to onboarding for belt/gym setup
+    // If email confirmation is ON → session is null → show "check email" screen
+    if (!data.session) {
+      setVerifying(true);
+      setLoading(false);
+      return;
+    }
+
+    // Email confirmation is OFF → session is set immediately → go to onboarding
     window.location.assign("/onboarding");
   };
+
+  // ── Email verification waiting screen ──
+  if (verifying) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-zinc-950">
+        <div className="w-full max-w-sm text-center space-y-5">
+          <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto">
+            <Mail size={36} className="text-red-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-100">Verify your email</h1>
+            <p className="text-sm text-zinc-400 mt-2">
+              We sent a confirmation link to{" "}
+              <span className="text-zinc-200 font-medium">{form.email}</span>.
+            </p>
+            <p className="text-sm text-zinc-500 mt-1">
+              Click the link in your inbox to activate your account.
+            </p>
+          </div>
+          <p className="text-xs text-zinc-600">
+            Didn&apos;t get it? Check your spam folder or{" "}
+            <button
+              onClick={() => setVerifying(false)}
+              className="text-red-400 hover:text-red-300 transition-colors"
+            >
+              try again
+            </button>.
+          </p>
+          <Link href="/login"
+            className="inline-block bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold px-6 py-3 rounded-xl text-sm transition-colors">
+            Back to Login
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-zinc-950">

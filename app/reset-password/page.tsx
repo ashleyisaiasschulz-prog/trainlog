@@ -1,18 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Eye, EyeOff, Lock } from "lucide-react";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
+  const [ready, setReady]       = useState(false); // true once session is confirmed
   const [password, setPassword] = useState("");
   const [confirm, setConfirm]   = useState("");
   const [showPw, setShowPw]     = useState(false);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
   const [done, setDone]         = useState(false);
+
+  useEffect(() => {
+    const sb = createClient();
+    // After the auth/callback route exchanges the code, a session is set.
+    // We just need to confirm there IS a session before showing the form.
+    sb.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        setReady(true);
+      } else {
+        // No session → the link is broken/expired
+        router.replace("/forgot-password");
+      }
+    });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +46,14 @@ export default function ResetPasswordPage() {
     setTimeout(() => router.replace("/dashboard"), 2000);
   };
 
+  if (!ready && !done) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+        <p className="text-zinc-500 text-sm">Verifying link…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-zinc-950">
       <div className="w-full max-w-sm">
@@ -45,7 +68,7 @@ export default function ResetPasswordPage() {
         ) : (
           <>
             <div className="text-center mb-8">
-              <h1 className="text-2xl font-bold text-zinc-100">New password</h1>
+              <h1 className="text-2xl font-bold text-zinc-100">Set new password</h1>
               <p className="text-sm text-zinc-500 mt-1">Choose a strong password</p>
             </div>
 
