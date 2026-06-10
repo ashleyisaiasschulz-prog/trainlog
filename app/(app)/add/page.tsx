@@ -48,14 +48,20 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 function AddPageInner() {
   const router   = useRouter();
   const params   = useSearchParams();
-  const { addSession, upsertCheckIn, schedules } = useTrainingStore();
+  const { addSession, updateSession, upsertCheckIn, schedules, getSession } = useTrainingStore();
 
   const scheduleId = params.get("scheduleId") ?? undefined;
   const dateParam  = params.get("date") ?? undefined;
+  const editId     = params.get("edit") ?? undefined;
   const schedule   = scheduleId ? schedules.find((s) => s.id === scheduleId) : undefined;
+  const existing   = editId ? getSession(editId) : undefined;
 
   const [form, setForm] = useState(defaultForm(
-    schedule ? { date: dateParam ?? format(new Date(), "yyyy-MM-dd"), gym: schedule.gym, duration: schedule.duration, gi: schedule.gi, scheduleId } : undefined
+    existing
+      ? { ...existing }
+      : schedule
+        ? { date: dateParam ?? format(new Date(), "yyyy-MM-dd"), gym: schedule.gym, duration: schedule.duration, gi: schedule.gi, scheduleId }
+        : undefined
   ));
   const [saved, setSaved] = useState(false);
 
@@ -64,24 +70,28 @@ function AddPageInner() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const sessionId = randomId();
-    addSession({ ...form, id: sessionId });
-    if (scheduleId && dateParam) {
-      upsertCheckIn({ id: randomId(), scheduleId, date: dateParam, attended: true, sessionId });
+    if (editId && existing) {
+      updateSession({ ...form, id: editId });
+    } else {
+      const sessionId = randomId();
+      addSession({ ...form, id: sessionId });
+      if (scheduleId && dateParam) {
+        upsertCheckIn({ id: randomId(), scheduleId, date: dateParam, attended: true, sessionId });
+      }
     }
     setSaved(true);
-    setTimeout(() => router.push("/dashboard"), 500);
+    setTimeout(() => router.push(editId ? `/session/${editId}` : "/dashboard"), 500);
   };
 
   return (
     <div className="px-4 pt-5 pb-28 flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link href="/dashboard" className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 transition-colors">
+        <Link href={editId ? `/session/${editId}` : "/dashboard"} className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 transition-colors">
           <ArrowLeft size={18} />
         </Link>
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-zinc-100">Log Training</h1>
+          <h1 className="text-xl font-bold tracking-tight text-zinc-100">{editId ? "Edit Session" : "Log Training"}</h1>
           {schedule && <p className="text-[11px] text-red-400 mt-0.5">{schedule.name}</p>}
         </div>
       </div>

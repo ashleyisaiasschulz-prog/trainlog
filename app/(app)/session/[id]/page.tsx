@@ -3,7 +3,8 @@
 import { useParams, useRouter } from "next/navigation";
 import { useTrainingStore } from "@/store/useTrainingStore";
 import { format } from "date-fns";
-import { ArrowLeft, Clock, Zap, Trash2, Swords, Shield } from "lucide-react";
+import { ArrowLeft, Clock, Zap, Trash2, Swords, Shield, Pencil } from "lucide-react";
+import Link from "next/link";
 
 const INTENSITY_LABEL = ["", "Light", "Easy", "Medium", "Hard", "Beast Mode"];
 const INTENSITY_COLOR = ["", "text-emerald-400", "text-lime-400", "text-amber-400", "text-orange-400", "text-red-400"];
@@ -65,10 +66,16 @@ export default function SessionDetailPage() {
           className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 transition-colors">
           <ArrowLeft size={18} />
         </button>
-        <button onClick={handleDelete}
-          className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-red-500/10 text-zinc-600 hover:text-red-500 transition-colors">
-          <Trash2 size={16} />
-        </button>
+        <div className="flex items-center gap-2">
+          <Link href={`/add?edit=${session.id}`}
+            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-zinc-800 text-zinc-500 hover:text-zinc-200 transition-colors">
+            <Pencil size={15} />
+          </Link>
+          <button onClick={handleDelete}
+            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-red-500/10 text-zinc-600 hover:text-red-500 transition-colors">
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
 
       {/* ── Title block ── */}

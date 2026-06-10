@@ -1,8 +1,8 @@
 "use client";
 import { randomId } from "@/lib/id";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTrainingStore } from "@/store/useTrainingStore";
 import { Tournament, Match, MatchResult, FinishType, OpponentLevel, SUBMISSIONS, Placement, PLACEMENT_CONFIG } from "@/lib/types";
 import { format } from "date-fns";
@@ -60,9 +60,22 @@ const LEVEL_OPTIONS: { value: OpponentLevel; label: string }[] = [
 ];
 
 export default function AddTournamentPage() {
+  return <Suspense><AddTournamentInner /></Suspense>;
+}
+
+function AddTournamentInner() {
   const router = useRouter();
-  const { addTournament } = useTrainingStore();
-  const [form, setForm] = useState(defaultTournament());
+  const params = useSearchParams();
+  const editId = params.get("edit") ?? undefined;
+  const { addTournament, updateTournament, getTournament } = useTrainingStore();
+
+  const existing = editId ? getTournament(editId) : undefined;
+  const [form, setForm] = useState<Omit<Tournament, "id">>(existing
+    ? { name: existing.name, date: existing.date, location: existing.location,
+        weightClass: existing.weightClass, gi: existing.gi, matches: existing.matches,
+        notes: existing.notes, placement: existing.placement }
+    : defaultTournament()
+  );
   const [saved, setSaved] = useState(false);
   const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
 
@@ -76,10 +89,7 @@ export default function AddTournamentPage() {
   };
 
   const updateMatch = (id: string, key: keyof Match, value: unknown) => {
-    setF(
-      "matches",
-      form.matches.map((m) => (m.id === id ? { ...m, [key]: value } : m))
-    );
+    setF("matches", form.matches.map((m) => (m.id === id ? { ...m, [key]: value } : m)));
   };
 
   const removeMatch = (id: string) => {
@@ -88,18 +98,24 @@ export default function AddTournamentPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    addTournament({ ...form, id: randomId() });
-    setSaved(true);
-    setTimeout(() => router.push("/tournaments"), 600);
+    if (editId) {
+      updateTournament({ ...form, id: editId });
+      setSaved(true);
+      setTimeout(() => router.push(`/tournaments/${editId}`), 500);
+    } else {
+      addTournament({ ...form, id: randomId() });
+      setSaved(true);
+      setTimeout(() => router.push("/tournaments"), 600);
+    }
   };
 
   return (
     <div className="px-4 pt-6 pb-8">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/tournaments" className="text-zinc-400 hover:text-white">
+        <Link href={editId ? `/tournaments/${editId}` : "/tournaments"} className="text-zinc-400 hover:text-white">
           <ArrowLeft size={22} />
         </Link>
-        <h1 className="text-xl font-black text-white">Log Tournament</h1>
+        <h1 className="text-xl font-black text-white">{editId ? "Edit Tournament" : "Log Tournament"}</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
