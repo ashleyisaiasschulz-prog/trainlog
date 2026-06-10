@@ -149,6 +149,27 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 99px; }
 
+/* ── Light mode overrides ── */
+:root:not(.dark) body {
+  background-color: #f4f4f5;
+  color: #18181b;
+}
+:root:not(.dark) .bg-zinc-950 { background-color: #f4f4f5 !important; }
+:root:not(.dark) .bg-zinc-900 { background-color: #ffffff !important; }
+:root:not(.dark) .bg-zinc-800\/60, :root:not(.dark) .bg-zinc-800\/80 { background-color: #e4e4e7 !important; }
+:root:not(.dark) .bg-zinc-800 { background-color: #e4e4e7 !important; }
+:root:not(.dark) .border-zinc-800 { border-color: #d4d4d8 !important; }
+:root:not(.dark) .border-zinc-700 { border-color: #a1a1aa !important; }
+:root:not(.dark) .text-zinc-100 { color: #18181b !important; }
+:root:not(.dark) .text-zinc-200 { color: #27272a !important; }
+:root:not(.dark) .text-zinc-300 { color: #3f3f46 !important; }
+:root:not(.dark) .text-zinc-400 { color: #52525b !important; }
+:root:not(.dark) .text-zinc-500 { color: #71717a !important; }
+:root:not(.dark) .text-zinc-600 { color: #a1a1aa !important; }
+:root:not(.dark) .bg-zinc-700 { background-color: #d4d4d8 !important; }
+:root:not(.dark) .bg-zinc-700\/50 { background-color: #d4d4d880 !important; }
+:root:not(.dark) .min-h-full, :root:not(.dark) .min-h-screen { background-color: #f4f4f5; }
+
 /* ── Design tokens as utility classes ── */
 
 /* Card: the single surface style used everywhere */

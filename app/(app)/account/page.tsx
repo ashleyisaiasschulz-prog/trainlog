@@ -4,12 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { LogOut, Shield, LogIn, UserPlus } from "lucide-react";
+import { LogOut, Shield, LogIn, UserPlus, Sun, Moon } from "lucide-react";
 import Link from "next/link";
+import { useTheme } from "@/hooks/useTheme";
 
 export default function AccountPage() {
   const router = useRouter();
   const { user, profile, signOut, refreshProfile } = useAuthStore();
+  const { isDark, toggle: toggleTheme } = useTheme();
   const sb = createClient();
   const [saving, setSaving] = useState(false);
 
@@ -120,6 +122,23 @@ export default function AccountPage() {
             </button>
           );
         })}
+      </div>
+
+      {/* Appearance */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Appearance</p>
+        <button onClick={toggleTheme} className="w-full flex items-center gap-3 text-left">
+          <span className="text-xl">{isDark ? "🌙" : "☀️"}</span>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-zinc-200">{isDark ? "Dark Mode" : "Light Mode"}</p>
+            <p className="text-xs text-zinc-600">Tap to switch appearance</p>
+          </div>
+          <div className={`w-11 h-6 rounded-full transition-colors shrink-0 ${isDark ? "bg-zinc-600" : "bg-amber-400"}`}>
+            <div className={`w-5 h-5 rounded-full bg-white mt-0.5 transition-transform ${isDark ? "translate-x-0.5" : "translate-x-5"}`}>
+              {isDark ? <Moon size={10} className="text-zinc-600 m-[3px]" /> : <Sun size={10} className="text-amber-500 m-[3px]" />}
+            </div>
+          </div>
+        </button>
       </div>
 
       {/* Sign out */}
