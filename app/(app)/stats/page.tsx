@@ -36,13 +36,18 @@ export default function StatsPage() {
 
   const weeklyData = useMemo(() => {
     const weeks = eachWeekOfInterval({ start: subWeeks(new Date(), 7), end: new Date() });
-    return weeks.map(week => ({
-      week: format(week, "MMM d"),
-      count: sessions.filter(s => {
-        const d = new Date(s.date);
-        return d >= week && d < addWeeks(week, 1);
-      }).length,
-    }));
+    return weeks.map((week, i) => {
+      const isThisWeek = i === weeks.length - 1;
+      const weeksAgo = weeks.length - 1 - i;
+      const label = isThisWeek ? "Now" : weeksAgo === 1 ? "1w ago" : `${weeksAgo}w`;
+      return {
+        week: label,
+        count: sessions.filter(s => {
+          const d = new Date(s.date + "T12:00:00");
+          return d >= week && d < addWeeks(week, 1);
+        }).length,
+      };
+    });
   }, [sessions]);
 
   const positionData = useMemo(() => {
@@ -83,6 +88,8 @@ export default function StatsPage() {
   const avgInten    = sessions.length > 0
     ? (sessions.reduce((a, s) => a + s.intensity, 0) / sessions.length).toFixed(1) : "—";
   const totalHours  = Math.round(sessions.reduce((a, s) => a + s.duration, 0) / 60);
+  const avgMinutes  = sessions.length > 0
+    ? Math.round(sessions.reduce((a, s) => a + s.duration, 0) / sessions.length) : 0;
 
   // Day streak
   const dayStreak = (() => {
@@ -137,6 +144,11 @@ export default function StatsPage() {
               <p className="text-[11px] text-zinc-600 mt-1">on the mat</p>
             </div>
           </div>
+          {avgMinutes > 0 && (
+            <p className="text-[11px] text-zinc-600 mt-3 pt-3 border-t border-zinc-800">
+              Avg <span className="text-zinc-400 font-semibold">{avgMinutes} min</span> per session
+            </p>
+          )}
         </div>
         {/* This month */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">

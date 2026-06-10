@@ -5,9 +5,10 @@ import { Schedule, CheckIn } from "@/lib/types";
 import { randomId } from "@/lib/id";
 import Link from "next/link";
 import { format, addDays, startOfDay, differenceInCalendarDays } from "date-fns";
-import { Check, X, ChevronRight, Plus } from "lucide-react";
+import { Check, X, ChevronRight, Plus, Pencil } from "lucide-react";
 
-function getUpcoming(schedules: Schedule[], days = 14) {
+// Recurring: next 5 days only. One-time: next 14 days.
+function getUpcoming(schedules: Schedule[]) {
   const result: { schedule: Schedule; date: string }[] = [];
   const today = startOfDay(new Date());
 
@@ -16,9 +17,10 @@ function getUpcoming(schedules: Schedule[], days = 14) {
 
     if (s.type === "once" && s.date) {
       const diff = differenceInCalendarDays(new Date(s.date + "T12:00:00"), today);
-      if (diff >= 0 && diff < days) result.push({ schedule: s, date: s.date });
+      if (diff >= 0 && diff < 14) result.push({ schedule: s, date: s.date });
     } else if (s.type !== "once") {
-      for (let d = 0; d < days; d++) {
+      // Only show within next 5 days
+      for (let d = 0; d < 5; d++) {
         const day = addDays(today, d);
         if (s.dayOfWeek === day.getDay())
           result.push({ schedule: s, date: format(day, "yyyy-MM-dd") });
@@ -29,10 +31,9 @@ function getUpcoming(schedules: Schedule[], days = 14) {
   return result.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-const isPast   = (date: string) => new Date(date + "T23:59:59") < new Date();
-const isToday  = (date: string) => date === format(new Date(), "yyyy-MM-dd");
-const isTomorrow = (date: string) =>
-  date === format(addDays(new Date(), 1), "yyyy-MM-dd");
+const isPast     = (date: string) => new Date(date + "T23:59:59") < new Date();
+const isToday    = (date: string) => date === format(new Date(), "yyyy-MM-dd");
+const isTomorrow = (date: string) => date === format(addDays(new Date(), 1), "yyyy-MM-dd");
 
 function dayLabel(date: string) {
   if (isToday(date))    return "Today";
@@ -42,7 +43,7 @@ function dayLabel(date: string) {
 
 export default function ScheduleWidget() {
   const { schedules, checkIns, upsertCheckIn } = useTrainingStore();
-  const occurrences = getUpcoming(schedules, 14);
+  const occurrences = getUpcoming(schedules);
 
   if (occurrences.length === 0) {
     return (
@@ -95,9 +96,7 @@ export default function ScheduleWidget() {
             <div key={`${schedule.id}-${date}`} className={`flex items-center gap-3 px-4 py-3 ${missed ? "opacity-40" : ""}`}>
               {/* Day badge */}
               <div className={`w-12 text-center shrink-0 ${today ? "text-red-400" : past ? "text-zinc-700" : "text-zinc-400"}`}>
-                <p className="text-[9px] font-semibold uppercase tracking-widest leading-none">
-                  {dayLabel(date)}
-                </p>
+                <p className="text-[9px] font-semibold uppercase tracking-widest leading-none">{dayLabel(date)}</p>
                 <p className="text-base font-bold leading-snug tabular-nums">
                   {format(new Date(date + "T12:00:00"), "d")}
                 </p>
@@ -125,6 +124,12 @@ export default function ScheduleWidget() {
                 </div>
               </div>
 
+              {/* Edit icon */}
+              <Link href={`/schedule?edit=${schedule.id}`}
+                className="text-zinc-700 hover:text-zinc-400 transition-colors p-1 shrink-0">
+                <Pencil size={13} />
+              </Link>
+
               {/* Status / CTA */}
               {attended ? (
                 <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-500">
@@ -136,24 +141,18 @@ export default function ScheduleWidget() {
                 </span>
               ) : past ? (
                 <div className="flex gap-1.5 shrink-0">
-                  <Link
-                    href={`/add?scheduleId=${schedule.id}&date=${date}`}
-                    className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-1.5 rounded-lg hover:bg-emerald-500/20 transition-colors"
-                  >
+                  <Link href={`/add?scheduleId=${schedule.id}&date=${date}`}
+                    className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-1.5 rounded-lg hover:bg-emerald-500/20 transition-colors">
                     I went
                   </Link>
-                  <button
-                    onClick={() => markMissed(schedule.id, date)}
-                    className="text-[11px] font-medium text-zinc-600 bg-zinc-800/80 px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
-                  >
+                  <button onClick={() => markMissed(schedule.id, date)}
+                    className="text-[11px] font-medium text-zinc-600 bg-zinc-800/80 px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors">
                     Skip
                   </button>
                 </div>
               ) : (
-                <Link
-                  href={`/add?scheduleId=${schedule.id}&date=${date}`}
-                  className="flex items-center gap-0.5 text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors"
-                >
+                <Link href={`/add?scheduleId=${schedule.id}&date=${date}`}
+                  className="flex items-center gap-0.5 text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors">
                   Log <ChevronRight size={11} />
                 </Link>
               )}

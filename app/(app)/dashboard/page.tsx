@@ -49,7 +49,9 @@ export default function DashboardPage() {
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-zinc-100">Grapplr</h1>
+          <h1 className="text-2xl font-black tracking-tight text-zinc-100">
+            Grapplr<span className="text-red-500">.</span>
+          </h1>
           <p className="text-xs text-zinc-500 mt-0.5">Your BJJ journey</p>
         </div>
         <Link

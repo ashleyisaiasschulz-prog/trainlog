@@ -1,12 +1,13 @@
 "use client";
 import { randomId } from "@/lib/id";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTrainingStore } from "@/store/useTrainingStore";
 import { Schedule, DAY_NAMES, DAY_NAMES_FULL, DayOfWeek } from "@/lib/types";
-import { ArrowLeft, Plus, Trash2, Clock, ToggleLeft, ToggleRight, RefreshCw, Calendar } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Clock, ToggleLeft, ToggleRight, RefreshCw, Calendar, Pencil } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
+import { useSearchParams } from "next/navigation";
 
 const defaultForm = (): Omit<Schedule, "id"> => ({
   type: "recurring", name: "", dayOfWeek: 2, date: undefined,
@@ -15,17 +16,46 @@ const defaultForm = (): Omit<Schedule, "id"> => ({
 
 export default function SchedulePage() {
   const { schedules, addSchedule, updateSchedule, deleteSchedule } = useTrainingStore();
+  const searchParams = useSearchParams();
   const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm());
   const setF = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm(f => ({ ...f, [k]: v }));
 
+  // Auto-open edit form if ?edit=id in URL
+  useEffect(() => {
+    const id = searchParams.get("edit");
+    if (id) {
+      const s = schedules.find(x => x.id === id);
+      if (s) openEdit(s);
+    }
+  }, [searchParams, schedules]);
+
+  const openEdit = (s: Schedule) => {
+    setEditId(s.id);
+    setForm({ type: s.type, name: s.name, dayOfWeek: s.dayOfWeek, date: s.date,
+      time: s.time, duration: s.duration, gi: s.gi, gym: s.gym, active: s.active });
+    setShowForm(true);
+  };
+
   const handleAdd = () => {
     if (!form.name.trim()) return;
     if (form.type === "once" && !form.date) return;
-    addSchedule({ ...form, id: randomId() });
+    if (editId) {
+      updateSchedule({ ...form, id: editId });
+      setEditId(null);
+    } else {
+      addSchedule({ ...form, id: randomId() });
+    }
     setForm(defaultForm());
     setShowForm(false);
+  };
+
+  const handleCancel = () => {
+    setShowForm(false);
+    setEditId(null);
+    setForm(defaultForm());
   };
 
   const recurring = schedules.filter(s => s.type !== "once");
@@ -54,6 +84,8 @@ export default function SchedulePage() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-4">
 
           {/* Type toggle */}
+          <p className="text-sm font-semibold text-zinc-100">{editId ? "Edit Session" : "New Session"}</p>
+
           <div className="flex gap-2 p-1 bg-zinc-800/60 rounded-xl">
             <button type="button" onClick={() => setF("type", "recurring")}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-all ${
@@ -142,14 +174,14 @@ export default function SchedulePage() {
           </div>
 
           <div className="flex gap-2 pt-1">
-            <button type="button" onClick={() => setShowForm(false)}
+            <button type="button" onClick={handleCancel}
               className="bg-zinc-800 hover:bg-zinc-700 active:scale-[0.97] text-zinc-300 font-medium rounded-xl transition-all flex-1 py-3 text-sm">
               Cancel
             </button>
             <button type="button" onClick={handleAdd}
               disabled={!form.name.trim() || (form.type === "once" && !form.date)}
               className="bg-red-600 hover:bg-red-500 active:scale-[0.97] text-white font-semibold rounded-xl transition-all flex-1 py-3 text-sm disabled:opacity-30">
-              Save
+              {editId ? "Update" : "Save"}
             </button>
           </div>
         </div>
@@ -172,6 +204,9 @@ export default function SchedulePage() {
                   }`}>{s.gi ? "Gi" : "No-Gi"}</span>
                 </div>
               </div>
+              <button onClick={() => openEdit(s)} className="text-zinc-600 hover:text-zinc-300 transition-colors p-1">
+                <Pencil size={14} />
+              </button>
               <button onClick={() => deleteSchedule(s.id)} className="text-zinc-700 hover:text-red-500 transition-colors p-1">
                 <Trash2 size={15} />
               </button>
@@ -204,6 +239,9 @@ export default function SchedulePage() {
                           }`}>{s.gi ? "Gi" : "No-Gi"}</span>
                         </div>
                       </div>
+                      <button onClick={() => openEdit(s)} className="text-zinc-600 hover:text-zinc-300 transition-colors p-1">
+                        <Pencil size={14} />
+                      </button>
                       <button onClick={() => updateSchedule({ ...s, active: !s.active })}
                         className={`transition-colors ${s.active ? "text-red-500" : "text-zinc-700"}`}>
                         {s.active ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
