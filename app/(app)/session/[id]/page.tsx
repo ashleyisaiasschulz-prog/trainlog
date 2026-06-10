@@ -62,10 +62,10 @@ export default function SessionDetailPage() {
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
-        <button onClick={() => router.back()}
+        <Link href="/dashboard"
           className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 transition-colors">
           <ArrowLeft size={18} />
-        </button>
+        </Link>
         <div className="flex items-center gap-2">
           <Link href={`/add?edit=${session.id}`}
             className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-zinc-800 text-zinc-500 hover:text-zinc-200 transition-colors">
