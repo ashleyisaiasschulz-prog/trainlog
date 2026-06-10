@@ -6,7 +6,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie, Legend,
 } from "recharts";
-import { format, eachWeekOfInterval, subWeeks, addWeeks } from "date-fns";
+import { format, eachWeekOfInterval, subWeeks, addWeeks, startOfMonth, startOfWeek, subDays } from "date-fns";
 import { computeStreak } from "@/components/StreakWidget";
 
 const TOOLTIP_STYLE = {
@@ -79,10 +79,34 @@ export default function StatsPage() {
     { name: "Other",      value: compWins - subWins - pointsWins },
   ].filter(d => d.value > 0);
 
-  const streak     = computeStreak(sessions);
-  const avgInten   = sessions.length > 0
+  const streak      = computeStreak(sessions);
+  const avgInten    = sessions.length > 0
     ? (sessions.reduce((a, s) => a + s.intensity, 0) / sessions.length).toFixed(1) : "—";
-  const totalHours = Math.round(sessions.reduce((a, s) => a + s.duration, 0) / 60);
+  const totalHours  = Math.round(sessions.reduce((a, s) => a + s.duration, 0) / 60);
+
+  // Day streak
+  const dayStreak = (() => {
+    if (sessions.length === 0) return 0;
+    const dates = new Set(sessions.map(s => s.date));
+    let count = 0;
+    let d = new Date();
+    while (true) {
+      const key = format(d, "yyyy-MM-dd");
+      if (dates.has(key)) { count++; d = subDays(d, 1); }
+      else break;
+    }
+    return count;
+  })();
+
+  // This week
+  const weekStart       = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const thisWeekSessions = sessions.filter(s => new Date(s.date + "T12:00:00") >= weekStart);
+  const thisWeekHours   = Math.round(thisWeekSessions.reduce((a, s) => a + s.duration, 0) / 60);
+
+  // This month
+  const monthStart       = startOfMonth(new Date());
+  const thisMonthSessions = sessions.filter(s => new Date(s.date + "T12:00:00") >= monthStart);
+  const thisMonthHours   = Math.round(thisMonthSessions.reduce((a, s) => a + s.duration, 0) / 60);
 
   if (sessions.length === 0 && tournaments.length === 0) {
     return (
@@ -98,19 +122,64 @@ export default function StatsPage() {
     <div className="px-4 pt-5 pb-28 flex flex-col gap-4">
       <h1 className="text-xl font-bold tracking-tight text-zinc-100">Statistics</h1>
 
-      {/* ── Summary strip ── */}
-      <div className="grid grid-cols-4 gap-2">
-        {[
-          { label: "Sessions",  value: sessions.length },
-          { label: "Hours",     value: `${totalHours}h` },
-          { label: "Intensity", value: avgInten },
-          { label: "Streak",    value: `${streak}w 🔥` },
-        ].map(({ label, value }) => (
-          <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 text-center">
-            <p className="text-base font-bold text-zinc-100 tabular-nums leading-none">{value}</p>
-            <p className="text-[10px] text-zinc-600 mt-1 tracking-wide">{label}</p>
+      {/* ── Summary ── */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Total */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Total</p>
+          <div className="flex items-end gap-3">
+            <div>
+              <p className="text-3xl font-bold text-zinc-100 tabular-nums leading-none">{sessions.length}</p>
+              <p className="text-[11px] text-zinc-600 mt-1">sessions</p>
+            </div>
+            <div className="mb-0.5">
+              <p className="text-xl font-bold text-zinc-400 tabular-nums leading-none">{totalHours}h</p>
+              <p className="text-[11px] text-zinc-600 mt-1">on the mat</p>
+            </div>
           </div>
-        ))}
+        </div>
+        {/* This month */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">This Month</p>
+          <div className="flex items-end gap-3">
+            <div>
+              <p className="text-3xl font-bold text-zinc-100 tabular-nums leading-none">{thisMonthSessions.length}</p>
+              <p className="text-[11px] text-zinc-600 mt-1">sessions</p>
+            </div>
+            <div className="mb-0.5">
+              <p className="text-xl font-bold text-zinc-400 tabular-nums leading-none">{thisMonthHours}h</p>
+              <p className="text-[11px] text-zinc-600 mt-1">on the mat</p>
+            </div>
+          </div>
+        </div>
+        {/* This week */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">This Week</p>
+          <div className="flex items-end gap-3">
+            <div>
+              <p className="text-3xl font-bold text-zinc-100 tabular-nums leading-none">{thisWeekSessions.length}</p>
+              <p className="text-[11px] text-zinc-600 mt-1">sessions</p>
+            </div>
+            <div className="mb-0.5">
+              <p className="text-xl font-bold text-zinc-400 tabular-nums leading-none">{thisWeekHours}h</p>
+              <p className="text-[11px] text-zinc-600 mt-1">on the mat</p>
+            </div>
+          </div>
+        </div>
+        {/* Day streak */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Day Streak</p>
+          <div className="flex items-end gap-3">
+            <div>
+              <p className="text-3xl font-bold text-red-500 tabular-nums leading-none">{dayStreak}</p>
+              <p className="text-[11px] text-zinc-600 mt-1">days in a row</p>
+            </div>
+            <div className="mb-0.5">
+              <p className="text-xl font-bold text-zinc-400 tabular-nums leading-none">{streak}w</p>
+              <p className="text-[11px] text-zinc-600 mt-1">week streak</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ── Weekly bar chart ── */}

@@ -1,26 +1,26 @@
 "use client";
 
-import { useState } from "react";
 import { useTrainingStore } from "@/store/useTrainingStore";
 import SessionCard from "@/components/SessionCard";
-import StreakWidget from "@/components/StreakWidget";
-import MotivationCard from "@/components/MotivationCard";
-import GoalsCard from "@/components/GoalsCard";
 import BeltBadge from "@/components/BeltBadge";
 import ScheduleWidget from "@/components/ScheduleWidget";
 import Link from "next/link";
-import { Plus, Clock, Calendar, Zap, ChevronRight } from "lucide-react";
+import { Plus, ChevronRight } from "lucide-react";
 import { BELT_ORDER, BELT_LABELS } from "@/lib/types";
-import { differenceInMonths, differenceInYears } from "date-fns";
+import { differenceInMonths, differenceInYears, differenceInDays } from "date-fns";
+import { useState } from "react";
 
 function timeInBelt(promotions: { toBelt: string; date: string }[], belt: string) {
   const last = [...promotions].reverse().find((p) => p.toBelt === belt);
   if (!last) return null;
-  const from = new Date(last.date);
-  const years = differenceInYears(new Date(), from);
-  const months = differenceInMonths(new Date(), from) % 12;
-  if (years === 0 && months === 0) return "< 1m";
-  return [years > 0 ? `${years}y` : "", months > 0 ? `${months}m` : ""].filter(Boolean).join(" ");
+  const from = new Date(last.date + "T12:00:00");
+  const days   = differenceInDays(new Date(), from);
+  const months = differenceInMonths(new Date(), from);
+  const years  = differenceInYears(new Date(), from);
+  if (days < 30) return `${days}d`;
+  const y = years > 0 ? `${years}y ` : "";
+  const m = months % 12 > 0 ? `${months % 12}m` : "";
+  return (y + m).trim() || "< 1m";
 }
 
 type Filter = "all" | "gi" | "nogi";
@@ -28,13 +28,6 @@ type Filter = "all" | "gi" | "nogi";
 export default function DashboardPage() {
   const { sessions, currentBelt, currentStripes, promotions } = useTrainingStore();
   const [filter, setFilter] = useState<Filter>("all");
-
-  const filtered = sessions.filter((s) =>
-    filter === "gi" ? s.gi : filter === "nogi" ? !s.gi : true
-  );
-
-  const totalHours = Math.round(sessions.reduce((a, s) => a + s.duration, 0) / 60);
-  const thisWeek   = sessions.filter((s) => new Date(s.date) >= new Date(Date.now() - 7 * 86400000)).length;
 
   const nextBeltIdx = BELT_ORDER.indexOf(currentBelt) + 1;
   const nextBelt    = nextBeltIdx < BELT_ORDER.length ? BELT_ORDER[nextBeltIdx] : null;
@@ -44,18 +37,19 @@ export default function DashboardPage() {
 
   const beltTime = timeInBelt(promotions, currentBelt);
 
+  // Sessions sorted by date descending
+  const sorted   = [...sessions].sort((a, b) => b.date.localeCompare(a.date));
+  const filtered = sorted.filter((s) =>
+    filter === "gi" ? s.gi : filter === "nogi" ? !s.gi : true
+  );
+
   return (
     <div className="px-4 pt-5 pb-28 flex flex-col gap-4">
 
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-zinc-100">Grapplr</h1>
-            <span className="text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
-              EARLY ACCESS
-            </span>
-          </div>
+          <h1 className="text-xl font-bold tracking-tight text-zinc-100">Grapplr</h1>
           <p className="text-xs text-zinc-500 mt-0.5">Your BJJ journey</p>
         </div>
         <Link
@@ -77,12 +71,10 @@ export default function DashboardPage() {
             <ChevronRight size={16} className="text-zinc-700 mt-1 shrink-0" />
           </div>
           <div className="flex items-center gap-5 mt-4 pt-3 border-t border-zinc-800">
-            {beltTime && (
-              <div>
-                <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-0.5">Time in belt</p>
-                <p className="text-sm font-semibold text-zinc-300">{beltTime}</p>
-              </div>
-            )}
+            <div>
+              <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-0.5">Time in belt</p>
+              <p className="text-sm font-semibold text-zinc-300">{beltTime ?? "—"}</p>
+            </div>
             <div>
               <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-0.5">Next</p>
               <p className="text-sm font-semibold text-red-400">{milestone}</p>
@@ -91,36 +83,11 @@ export default function DashboardPage() {
         </div>
       </Link>
 
-      {/* ── Stats strip ── */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { icon: Calendar, label: "Sessions",  value: sessions.length },
-          { icon: Clock,    label: "Hours",     value: `${totalHours}h` },
-          { icon: Zap,      label: "This week", value: thisWeek },
-        ].map(({ icon: Icon, label, value }) => (
-          <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-center">
-            <Icon size={14} className="text-zinc-600 mx-auto mb-2" />
-            <p className="text-lg font-bold text-zinc-100 tabular-nums leading-none">{value}</p>
-            <p className="text-[10px] text-zinc-600 mt-1.5 tracking-wide">{label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Streak ── */}
-      <StreakWidget sessions={sessions} />
-
-      {/* ── Motivation ── */}
-      <MotivationCard sessions={sessions} />
-
-      {/* ── Goals ── */}
-      <GoalsCard />
-
-      {/* ── Schedule ── */}
+      {/* ── Upcoming sessions ── */}
       <ScheduleWidget />
 
       {/* ── Session list ── */}
       <div className="flex flex-col gap-3">
-        {/* Filter row */}
         <div className="flex items-center gap-2">
           {(["all", "gi", "nogi"] as Filter[]).map((f) => (
             <button
@@ -143,7 +110,7 @@ export default function DashboardPage() {
             <span className="text-3xl">🥋</span>
             <p className="text-sm font-medium text-zinc-400">No sessions yet</p>
             <Link href="/add" className="bg-red-600 hover:bg-red-500 text-white font-semibold rounded-xl px-5 py-2.5 text-sm">
-              Add Session
+              Log Session
             </Link>
           </div>
         ) : (
