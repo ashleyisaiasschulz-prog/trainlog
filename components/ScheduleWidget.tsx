@@ -5,10 +5,12 @@ import { Schedule, CheckIn } from "@/lib/types";
 import { randomId } from "@/lib/id";
 import Link from "next/link";
 import { format, addDays, startOfDay, differenceInCalendarDays } from "date-fns";
-import { Check, X, ChevronRight, Plus } from "lucide-react";
+import { Check, X, Plus } from "lucide-react";
 
-// Recurring: next 5 days only. One-time: next 14 days.
-function getUpcoming(schedules: Schedule[]) {
+const DISPLAY_COUNT = 5;
+
+// Fetch from a wide window, slice after filtering missed
+function getUpcoming(schedules: Schedule[], days = 21) {
   const result: { schedule: Schedule; date: string }[] = [];
   const today = startOfDay(new Date());
 
@@ -17,10 +19,9 @@ function getUpcoming(schedules: Schedule[]) {
 
     if (s.type === "once" && s.date) {
       const diff = differenceInCalendarDays(new Date(s.date + "T12:00:00"), today);
-      if (diff >= 0 && diff < 14) result.push({ schedule: s, date: s.date });
+      if (diff >= 0 && diff < days) result.push({ schedule: s, date: s.date });
     } else if (s.type !== "once") {
-      // Only show within next 5 days
-      for (let d = 0; d < 5; d++) {
+      for (let d = 0; d < days; d++) {
         const day = addDays(today, d);
         if (s.dayOfWeek === day.getDay())
           result.push({ schedule: s, date: format(day, "yyyy-MM-dd") });
@@ -31,9 +32,9 @@ function getUpcoming(schedules: Schedule[]) {
   return result.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-const isPast     = (date: string) => new Date(date + "T23:59:59") < new Date();
 const isToday    = (date: string) => date === format(new Date(), "yyyy-MM-dd");
 const isTomorrow = (date: string) => date === format(addDays(new Date(), 1), "yyyy-MM-dd");
+const isPast     = (date: string) => new Date(date + "T23:59:59") < new Date();
 
 function dayLabel(date: string) {
   if (isToday(date))    return "Today";
@@ -43,9 +44,20 @@ function dayLabel(date: string) {
 
 export default function ScheduleWidget() {
   const { schedules, checkIns, upsertCheckIn } = useTrainingStore();
-  const occurrences = getUpcoming(schedules);
+  const all = getUpcoming(schedules);
 
-  if (occurrences.length === 0) {
+  const getCheckIn = (scheduleId: string, date: string): CheckIn | undefined =>
+    checkIns.find((c) => c.scheduleId === scheduleId && c.date === date);
+
+  const markMissed = (scheduleId: string, date: string) =>
+    upsertCheckIn({ id: randomId(), scheduleId, date, attended: false });
+
+  // Filter out missed ones, then take first DISPLAY_COUNT
+  const visible = all
+    .filter(({ schedule, date }) => getCheckIn(schedule.id, date)?.attended !== false)
+    .slice(0, DISPLAY_COUNT);
+
+  if (visible.length === 0) {
     return (
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
@@ -64,12 +76,6 @@ export default function ScheduleWidget() {
     );
   }
 
-  const getCheckIn = (scheduleId: string, date: string): CheckIn | undefined =>
-    checkIns.find((c) => c.scheduleId === scheduleId && c.date === date);
-
-  const markMissed = (scheduleId: string, date: string) =>
-    upsertCheckIn({ id: randomId(), scheduleId, date, attended: false });
-
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
@@ -85,17 +91,16 @@ export default function ScheduleWidget() {
       </div>
 
       <div className="divide-y divide-zinc-800/60">
-        {occurrences.map(({ schedule, date }) => {
+        {visible.map(({ schedule, date }) => {
           const checkIn  = getCheckIn(schedule.id, date);
           const past     = isPast(date);
           const today    = isToday(date);
           const attended = checkIn?.attended;
-          const missed   = checkIn?.attended === false;
 
           return (
-            <div key={`${schedule.id}-${date}`} className={`flex items-center gap-3 px-4 py-3 ${missed ? "opacity-40" : ""}`}>
+            <div key={`${schedule.id}-${date}`} className="flex items-center gap-3 px-4 py-3">
               {/* Day badge */}
-              <div className={`w-16 text-center shrink-0 ${today ? "text-red-400" : past ? "text-zinc-700" : "text-zinc-400"}`}>
+              <div className={`w-16 text-center shrink-0 ${today ? "text-red-400" : past ? "text-zinc-600" : "text-zinc-400"}`}>
                 <p className="text-[8px] font-semibold uppercase tracking-wide leading-none">{dayLabel(date)}</p>
                 <p className="text-base font-bold leading-snug tabular-nums">
                   {format(new Date(date + "T12:00:00"), "d")}
@@ -105,9 +110,7 @@ export default function ScheduleWidget() {
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <p className={`text-sm font-medium truncate ${past && !attended ? "text-zinc-500" : "text-zinc-100"}`}>
-                    {schedule.name}
-                  </p>
+                  <p className="text-sm font-medium truncate text-zinc-100">{schedule.name}</p>
                   {schedule.type === "once" && (
                     <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded shrink-0">ONCE</span>
                   )}
@@ -124,14 +127,10 @@ export default function ScheduleWidget() {
                 </div>
               </div>
 
-              {/* Status / CTA — Log or X only */}
+              {/* CTA */}
               {attended ? (
                 <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-500 shrink-0">
                   <Check size={12} strokeWidth={2.5} /> Logged
-                </span>
-              ) : missed ? (
-                <span className="flex items-center gap-1 text-[11px] font-medium text-zinc-500 shrink-0">
-                  <X size={12} /> Missed
                 </span>
               ) : (
                 <div className="flex items-center gap-1.5 shrink-0">

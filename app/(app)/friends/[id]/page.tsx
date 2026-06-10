@@ -114,7 +114,7 @@ export default function FriendStatsPage() {
           {/* Summary */}
           <div className="grid grid-cols-3 gap-3">
             {[
-              { icon: Calendar, label: "Sessions", value: sessions.length },
+              { icon: Calendar, label: sessions.length === 1 ? "Session" : "Sessions", value: sessions.length },
               { icon: Clock, label: "Hours", value: `${totalHours}h` },
               { icon: Zap, label: "This week", value: thisWeek },
             ].map(({ icon: Icon, label, value }) => (

@@ -128,15 +128,15 @@ export default function AccountPage() {
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
         <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Appearance</p>
         <button onClick={toggleTheme} className="w-full flex items-center gap-3 text-left">
-          <span className="text-xl">{isDark ? "🌙" : "☀️"}</span>
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isDark ? "bg-zinc-800 text-zinc-300" : "bg-amber-100 text-amber-600"}`}>
+            {isDark ? <Moon size={18} /> : <Sun size={18} />}
+          </div>
           <div className="flex-1">
             <p className="text-sm font-medium text-zinc-200">{isDark ? "Dark Mode" : "Light Mode"}</p>
             <p className="text-xs text-zinc-600">Tap to switch appearance</p>
           </div>
-          <div className={`w-11 h-6 rounded-full transition-colors shrink-0 ${isDark ? "bg-zinc-600" : "bg-amber-400"}`}>
-            <div className={`w-5 h-5 rounded-full bg-white mt-0.5 transition-transform ${isDark ? "translate-x-0.5" : "translate-x-5"}`}>
-              {isDark ? <Moon size={10} className="text-zinc-600 m-[3px]" /> : <Sun size={10} className="text-amber-500 m-[3px]" />}
-            </div>
+          <div className={`w-11 h-6 rounded-full transition-colors shrink-0 ${isDark ? "bg-zinc-700" : "bg-amber-400"}`}>
+            <div className={`w-5 h-5 rounded-full bg-white mt-0.5 transition-transform ${isDark ? "translate-x-0.5" : "translate-x-5"}`} />
           </div>
         </button>
       </div>

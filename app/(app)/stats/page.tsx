@@ -158,7 +158,7 @@ export default function StatsPage() {
           <div className="flex items-end gap-3">
             <div>
               <p className="text-3xl font-bold text-zinc-100 tabular-nums leading-none">{sessions.length}</p>
-              <p className="text-[11px] text-zinc-600 mt-1">sessions</p>
+              <p className="text-[11px] text-zinc-600 mt-1">session{sessions.length !== 1 ? "s" : ""}</p>
             </div>
             <div className="mb-0.5">
               <p className="text-xl font-bold text-zinc-400 tabular-nums leading-none">{totalHours}</p>

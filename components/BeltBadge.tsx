@@ -2,6 +2,15 @@
 
 import { Belt, BELT_COLORS, BELT_LABELS } from "@/lib/types";
 
+// Hardcoded belt colors that won't be overridden by light-mode CSS
+const BELT_BG: Record<Belt, string> = {
+  white:  "#d4d4d8",  // zinc-300 — visible on both light + dark backgrounds
+  blue:   "#2563eb",
+  purple: "#7c3aed",
+  brown:  "#78350f",
+  black:  "#18181b",  // hardcoded dark — not affected by light-mode CSS override
+};
+
 interface Props {
   belt: Belt;
   stripes: number;
@@ -26,13 +35,13 @@ export default function BeltBadge({ belt, stripes, size = "md", showLabel = true
       <div className={`flex w-full max-w-[220px] ${c.h} ${c.r} overflow-hidden`}>
 
         {/* Coloured body */}
-        <div className={`${c.body} ${col.bg} relative`}>
+        <div className={`${c.body} relative`} style={{ backgroundColor: BELT_BG[belt] }}>
           <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
           <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-black/15" />
         </div>
 
         {/* Black tip — stripes go here */}
-        <div className={`${c.tip} bg-black flex items-center justify-center ${c.gap} shrink-0`}>
+        <div className={`${c.tip} flex items-center justify-center ${c.gap} shrink-0`} style={{ backgroundColor: "#000" }}>
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
@@ -44,7 +53,7 @@ export default function BeltBadge({ belt, stripes, size = "md", showLabel = true
         </div>
 
         {/* Coloured tail — small piece after the black tip */}
-        <div className={`${c.tail} ${col.bg} relative shrink-0`}>
+        <div className={`${c.tail} relative shrink-0`} style={{ backgroundColor: BELT_BG[belt] }}>
           <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
           <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-black/15" />
         </div>
