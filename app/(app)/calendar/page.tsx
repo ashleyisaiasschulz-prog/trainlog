@@ -33,6 +33,8 @@ export default function CalendarPage() {
   const [selected, setSelected] = useState<Date | null>(null);
 
   const weeks = useMemo(() => buildCalendarWeeks(month), [month]);
+  // All days visible in the grid (incl. leading/trailing days from adjacent months)
+  const visibleDays = useMemo(() => weeks.flat(), [weeks]);
 
   /* Build lookup maps */
   const sessionsByDay = useMemo(() => {
@@ -48,8 +50,7 @@ export default function CalendarPage() {
   const upcomingByDay = useMemo(() => {
     const map: Record<string, { name: string; scheduleId: string; time: string }[]> = {};
     schedules.filter((sch) => sch.active).forEach((sch) => {
-      const daysInMonth = eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) });
-      daysInMonth.forEach((d) => {
+      visibleDays.forEach((d) => {
         const dateStr = format(d, "yyyy-MM-dd");
         let matches = false;
         if (sch.type === "once" && sch.date === dateStr) {
@@ -66,7 +67,7 @@ export default function CalendarPage() {
     });
     Object.values(map).forEach((arr) => arr.sort((a, b) => a.time.localeCompare(b.time)));
     return map;
-  }, [schedules, month, getCheckIn]);
+  }, [schedules, visibleDays, getCheckIn]);
 
   /* Injury active ranges */
   function injuryActiveOn(date: Date) {

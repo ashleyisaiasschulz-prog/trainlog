@@ -321,19 +321,19 @@ export default function StatsPage() {
                 style={{ width: `${allMatches.length > 0 ? Math.round(compWins / allMatches.length * 100) : 0}%` }} />
             </div>
           </div>
-          {/* How matches ended — wins & losses by method, one graphic */}
+          {/* How matches ended — wins & losses by method, one Kreisdiagramm */}
           {recordBreakdown.length > 0 && (
             <div>
               <p className="text-[11px] text-zinc-600 mb-2">How matches ended</p>
-              <ResponsiveContainer width="100%" height={recordBreakdown.length * 34 + 8}>
-                <BarChart data={recordBreakdown} layout="vertical" barSize={14} margin={{ left: 0, right: 28 }}>
-                  <XAxis type="number" hide allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" width={120} tick={{ fill: "#a1a1aa", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip {...TOOLTIP_STYLE} />
-                  <Bar dataKey="value" name="Matches" radius={[0, 4, 4, 0]}>
+              <ResponsiveContainer width="100%" height={210}>
+                <PieChart margin={{ top: 8, bottom: 0 }}>
+                  <Pie data={recordBreakdown} cx="50%" cy="45%" innerRadius={42} outerRadius={64} paddingAngle={3} dataKey="value" nameKey="name">
                     {recordBreakdown.map((d, i) => <Cell key={i} fill={d.fill} />)}
-                  </Bar>
-                </BarChart>
+                  </Pie>
+                  <Legend iconType="circle" iconSize={7}
+                    formatter={v => <span style={{ color: "#71717a", fontSize: 11 }}>{v}</span>} />
+                  <Tooltip {...TOOLTIP_STYLE} />
+                </PieChart>
               </ResponsiveContainer>
             </div>
           )}

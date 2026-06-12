@@ -69,7 +69,9 @@ function AddPageInner() {
       ? { ...existing }
       : schedule
         ? { date: dateParam ?? format(new Date(), "yyyy-MM-dd"), gym: schedule.gym, duration: schedule.duration, gi: schedule.gi, scheduleId }
-        : undefined
+        : dateParam
+          ? { date: dateParam }
+          : undefined
   ));
   const [saved, setSaved] = useState(false);
   const toast = useToastStore();
