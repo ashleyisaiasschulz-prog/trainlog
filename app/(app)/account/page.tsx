@@ -4,16 +4,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { LogOut, Shield, LogIn, UserPlus, Sun, Moon, Pencil, Check, X, Bell, BellOff } from "lucide-react";
+import { LogOut, Shield, LogIn, UserPlus, Sun, Moon, Pencil, Check, X, Bell, BellOff, TrendingUp, Zap, Swords, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "@/hooks/useTheme";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { usePrefsStore } from "@/store/usePrefsStore";
+import { useLang } from "@/components/LangProvider";
 
 export default function AccountPage() {
   const router = useRouter();
   const { user, profile, signOut, refreshProfile } = useAuthStore();
   const { isDark, toggle: toggleTheme } = useTheme();
   const { status: pushStatus, loading: pushLoading, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications();
+  const { trackSubmissions, trackSweeps, trackEscapes, setTrackSubmissions, setTrackSweeps, setTrackEscapes } = usePrefsStore();
+  const { lang, setLang } = useLang();
   const sb = createClient();
   const [saving, setSaving] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -207,6 +211,25 @@ export default function AccountPage() {
         </button>
       </div>
 
+      {/* Language */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Language / Sprache</p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setLang("en")}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${lang === "en" ? "bg-red-500/15 text-red-400 ring-1 ring-red-500/30" : "bg-zinc-800 text-zinc-500 hover:text-zinc-300"}`}
+          >
+            🇬🇧 English
+          </button>
+          <button
+            onClick={() => setLang("de")}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${lang === "de" ? "bg-red-500/15 text-red-400 ring-1 ring-red-500/30" : "bg-zinc-800 text-zinc-500 hover:text-zinc-300"}`}
+          >
+            🇩🇪 Deutsch
+          </button>
+        </div>
+      </div>
+
       {/* Notifications */}
       {pushStatus !== "unsupported" && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
@@ -254,11 +277,58 @@ export default function AccountPage() {
         </div>
       )}
 
+      {/* Tracking */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-1">Session Tracking</p>
+        <p className="text-xs text-zinc-600 -mt-1">Choose what to log in each training session</p>
+        {[
+          { label: "Track Submissions", desc: "Log submissions given and received", icon: Swords, on: trackSubmissions, toggle: () => setTrackSubmissions(!trackSubmissions) },
+          { label: "Track Sweeps", desc: "Log sweeps you hit and received", icon: TrendingUp, on: trackSweeps, toggle: () => setTrackSweeps(!trackSweeps) },
+          { label: "Track Escapes", desc: "Log escapes you completed and allowed", icon: Zap, on: trackEscapes, toggle: () => setTrackEscapes(!trackEscapes) },
+        ].map(({ label, desc, icon: Icon, on, toggle }) => (
+          <button key={label} onClick={toggle} className="w-full flex items-center gap-3 text-left">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${on ? "bg-red-500/10 text-red-400" : "bg-zinc-800 text-zinc-500"}`}>
+              <Icon size={18} />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-zinc-200">{label}</p>
+              <p className="text-xs text-zinc-600">{desc}</p>
+            </div>
+            <div className={`w-11 h-6 rounded-full transition-colors shrink-0 ${on ? "bg-red-500" : "bg-zinc-700"}`}>
+              <div className={`w-5 h-5 rounded-full bg-white mt-0.5 transition-transform ${on ? "translate-x-5" : "translate-x-0.5"}`} />
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Support */}
+      <a
+        href="mailto:20asherhd02@gmail.com?subject=Grapplr%20Support"
+        className="w-full bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-2 transition-colors"
+      >
+        <HelpCircle size={15}/> Help & Support
+      </a>
+
       {/* Sign out */}
       <button onClick={handleSignOut}
         className="w-full bg-zinc-900 border border-zinc-800 hover:border-red-500/30 hover:bg-red-500/5 text-red-400 font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-2 transition-colors">
         <LogOut size={15}/> Sign Out
       </button>
+
+      {/* Legal links */}
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pt-2 pb-2">
+        {[
+          { href: "/impressum",  label: "Impressum" },
+          { href: "/datenschutz", label: "Datenschutz" },
+          { href: "/agb",        label: "AGB" },
+          { href: "/widerruf",   label: "Widerruf" },
+        ].map(({ href, label }) => (
+          <Link key={href} href={href} className="text-xs text-zinc-700 hover:text-zinc-500 transition-colors">
+            {label}
+          </Link>
+        ))}
+      </div>
+      <p className="text-center text-[10px] text-zinc-800 pb-2">© {new Date().getFullYear()} Grapplr</p>
     </div>
   );
 }

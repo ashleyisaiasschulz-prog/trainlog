@@ -4,11 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useTrainingStore } from "@/store/useTrainingStore";
 import BeltBadge from "@/components/BeltBadge";
 import type { Belt } from "@/lib/types";
 import { BELT_ORDER, BELT_LABELS } from "@/lib/types";
 import { ChevronRight } from "lucide-react";
 import { randomId } from "@/lib/id";
+import { useTourStore } from "@/store/useTourStore";
 
 const STEPS = ["belt", "info", "done"] as const;
 type Step = (typeof STEPS)[number];
@@ -16,6 +18,7 @@ type Step = (typeof STEPS)[number];
 export default function OnboardingPage() {
   const router = useRouter();
   const { user, refreshProfile } = useAuthStore();
+  const { loadFromCloud } = useTrainingStore();
   const sb = createClient();
 
   const [step, setStep]         = useState<Step>("belt");
@@ -52,8 +55,10 @@ export default function OnboardingPage() {
     });
 
     await refreshProfile();
-    // Full page reload so loadFromCloud re-fetches the newly inserted belt promotion
-    window.location.assign("/dashboard");
+    // Reload training data so the belt promotion is in the store before navigating
+    await loadFromCloud(user.id);
+    useTourStore.getState().start();
+    router.replace("/dashboard");
   };
 
   return (

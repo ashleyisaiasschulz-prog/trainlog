@@ -1,6 +1,9 @@
 "use client";
 
 import { useTrainingStore } from "@/store/useTrainingStore";
+import { usePrefsStore } from "@/store/usePrefsStore";
+import { useAuthStore } from "@/store/useAuthStore";
+import PremiumGate from "@/components/PremiumGate";
 import { useMemo } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -34,6 +37,8 @@ function ChartCard({ title, subtitle, children }: { title: string; subtitle?: st
 
 export default function StatsPage() {
   const { sessions, tournaments } = useTrainingStore();
+  const { trackSubmissions, trackSweeps, trackEscapes } = usePrefsStore();
+  const { profile } = useAuthStore();
 
   const weeklyData = useMemo(() => {
     const weeks = eachWeekOfInterval({ start: subWeeks(new Date(), 7), end: new Date() });
@@ -69,6 +74,30 @@ export default function StatsPage() {
     return { given: toArr(given), received: toArr(received) };
   }, [sessions]);
 
+  const sweepData = useMemo(() => {
+    const given: Record<string, number> = {};
+    const received: Record<string, number> = {};
+    sessions.forEach(s => {
+      (s.sweepsGiven ?? []).forEach(x => (given[x] = (given[x] || 0) + 1));
+      (s.sweepsReceived ?? []).forEach(x => (received[x] = (received[x] || 0) + 1));
+    });
+    const toArr = (obj: Record<string, number>) =>
+      Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, value]) => ({ name, value }));
+    return { given: toArr(given), received: toArr(received) };
+  }, [sessions]);
+
+  const escapeData = useMemo(() => {
+    const given: Record<string, number> = {};
+    const received: Record<string, number> = {};
+    sessions.forEach(s => {
+      (s.escapesGiven ?? []).forEach(x => (given[x] = (given[x] || 0) + 1));
+      (s.escapesReceived ?? []).forEach(x => (received[x] = (received[x] || 0) + 1));
+    });
+    const toArr = (obj: Record<string, number>) =>
+      Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, value]) => ({ name, value }));
+    return { given: toArr(given), received: toArr(received) };
+  }, [sessions]);
+
   const giRatio = useMemo(() => [
     { name: "Gi",     value: sessions.filter(s =>  s.gi).length },
     { name: "No-Gi",  value: sessions.filter(s => !s.gi).length },
@@ -77,12 +106,22 @@ export default function StatsPage() {
   const allMatches  = tournaments.flatMap(t => t.matches);
   const compWins    = allMatches.filter(m => m.result === "win").length;
   const compLosses  = allMatches.filter(m => m.result === "loss").length;
-  const subWins     = allMatches.filter(m => m.result === "win" && m.finishType === "submission").length;
-  const pointsWins  = allMatches.filter(m => m.result === "win" && m.finishType === "points").length;
-  const winMethodData = [
-    { name: "Submission", value: subWins },
-    { name: "Points",     value: pointsWins },
-    { name: "Other",      value: compWins - subWins - pointsWins },
+  const subWins     = allMatches.filter(m => m.result === "win"  && m.finishType === "submission").length;
+  const pointsWins  = allMatches.filter(m => m.result === "win"  && m.finishType === "points").length;
+  const otherWins   = compWins - subWins - pointsWins;
+  const subLosses   = allMatches.filter(m => m.result === "loss" && m.finishType === "submission").length;
+  const pointsLosses= allMatches.filter(m => m.result === "loss" && m.finishType === "points").length;
+  const otherLosses = compLosses - subLosses - pointsLosses;
+
+  // One graphic: wins (green) and losses (red), each split by method.
+  // Submission = the "strong" outcome (darker), points = "weak" (lighter).
+  const recordBreakdown = [
+    { name: "Win · Submission",  value: subWins,      fill: "#16a34a" },
+    { name: "Win · Points",      value: pointsWins,   fill: "#4ade80" },
+    { name: "Win · Other",       value: otherWins,    fill: "#86efac" },
+    { name: "Loss · Submission", value: subLosses,    fill: "#dc2626" },
+    { name: "Loss · Points",     value: pointsLosses, fill: "#f87171" },
+    { name: "Loss · Other",      value: otherLosses,  fill: "#fca5a5" },
   ].filter(d => d.value > 0);
 
   const streak      = computeStreak(sessions);
@@ -229,6 +268,8 @@ export default function StatsPage() {
         </div>
       </div>
 
+      {profile?.is_premium ? (<>
+
       {/* ── Weekly bar chart ── */}
       <ChartCard title="Training Frequency" subtitle="Sessions per week — last 8 weeks">
         <ResponsiveContainer width="100%" height={150}>
@@ -273,24 +314,28 @@ export default function StatsPage() {
               </div>
             ))}
           </div>
-          {/* Win bar */}
+          {/* Win/Loss ratio bar */}
           <div className="flex items-center gap-2">
             <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
               <div className="h-full bg-emerald-500 rounded-full transition-all"
                 style={{ width: `${allMatches.length > 0 ? Math.round(compWins / allMatches.length * 100) : 0}%` }} />
             </div>
           </div>
-          {winMethodData.length > 0 && (
-            <ResponsiveContainer width="100%" height={160}>
-              <PieChart margin={{ top: 8, bottom: 0 }}>
-                <Pie data={winMethodData} cx="50%" cy="45%" outerRadius={52} paddingAngle={3} dataKey="value">
-                  {winMethodData.map((_, i) => <Cell key={i} fill={RED_SCALE[i % RED_SCALE.length]} />)}
-                </Pie>
-                <Legend iconType="circle" iconSize={7}
-                  formatter={v => <span style={{ color: "#71717a", fontSize: 11 }}>{v}</span>} />
-                <Tooltip {...TOOLTIP_STYLE} />
-              </PieChart>
-            </ResponsiveContainer>
+          {/* How matches ended — wins & losses by method, one graphic */}
+          {recordBreakdown.length > 0 && (
+            <div>
+              <p className="text-[11px] text-zinc-600 mb-2">How matches ended</p>
+              <ResponsiveContainer width="100%" height={recordBreakdown.length * 34 + 8}>
+                <BarChart data={recordBreakdown} layout="vertical" barSize={14} margin={{ left: 0, right: 28 }}>
+                  <XAxis type="number" hide allowDecimals={false} />
+                  <YAxis type="category" dataKey="name" width={120} tick={{ fill: "#a1a1aa", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip {...TOOLTIP_STYLE} />
+                  <Bar dataKey="value" name="Matches" radius={[0, 4, 4, 0]}>
+                    {recordBreakdown.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </ChartCard>
       )}
@@ -312,7 +357,7 @@ export default function StatsPage() {
       )}
 
       {/* ── Submissions Applied ── */}
-      {submissionData.given.length > 0 && (
+      {trackSubmissions && submissionData.given.length > 0 && (
         <ChartCard title="Submissions Applied" subtitle="Taps you got on others">
           <ResponsiveContainer width="100%" height={submissionData.given.length * 38 + 8}>
             <BarChart data={submissionData.given} layout="vertical" barSize={14} margin={{ left: 0, right: 28 }}>
@@ -328,7 +373,7 @@ export default function StatsPage() {
       )}
 
       {/* ── Submissions Received ── */}
-      {submissionData.received.length > 0 && (
+      {trackSubmissions && submissionData.received.length > 0 && (
         <ChartCard title="Submissions Received" subtitle="Your weak spots — drill these">
           <ResponsiveContainer width="100%" height={submissionData.received.length * 38 + 8}>
             <BarChart data={submissionData.received} layout="vertical" barSize={14} margin={{ left: 0, right: 28 }}>
@@ -341,6 +386,76 @@ export default function StatsPage() {
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
+      )}
+
+      {/* ── Sweeps Applied ── */}
+      {trackSweeps && sweepData.given.length > 0 && (
+        <ChartCard title="Sweeps Applied" subtitle="Sweeps you landed">
+          <ResponsiveContainer width="100%" height={sweepData.given.length * 38 + 8}>
+            <BarChart data={sweepData.given} layout="vertical" barSize={14} margin={{ left: 0, right: 28 }}>
+              <XAxis type="number" hide />
+              <YAxis type="category" dataKey="name" width={112} tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip {...TOOLTIP_STYLE} />
+              <Bar dataKey="value" name="Times" radius={[0, 4, 4, 0]}>
+                {sweepData.given.map((_, i) => <Cell key={i} fill="#3b82f6" opacity={1 - i * 0.12} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
+
+      {/* ── Sweeps Received ── */}
+      {trackSweeps && sweepData.received.length > 0 && (
+        <ChartCard title="Sweeps Received" subtitle="Sweeps landed on you">
+          <ResponsiveContainer width="100%" height={sweepData.received.length * 38 + 8}>
+            <BarChart data={sweepData.received} layout="vertical" barSize={14} margin={{ left: 0, right: 28 }}>
+              <XAxis type="number" hide />
+              <YAxis type="category" dataKey="name" width={112} tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip {...TOOLTIP_STYLE} />
+              <Bar dataKey="value" name="Times" radius={[0, 4, 4, 0]}>
+                {sweepData.received.map((_, i) => <Cell key={i} fill="#f97316" opacity={1 - i * 0.12} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
+
+      {/* ── Escapes Completed ── */}
+      {trackEscapes && escapeData.given.length > 0 && (
+        <ChartCard title="Escapes Completed" subtitle="Positions you escaped from">
+          <ResponsiveContainer width="100%" height={escapeData.given.length * 38 + 8}>
+            <BarChart data={escapeData.given} layout="vertical" barSize={14} margin={{ left: 0, right: 28 }}>
+              <XAxis type="number" hide />
+              <YAxis type="category" dataKey="name" width={112} tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip {...TOOLTIP_STYLE} />
+              <Bar dataKey="value" name="Times" radius={[0, 4, 4, 0]}>
+                {escapeData.given.map((_, i) => <Cell key={i} fill="#8b5cf6" opacity={1 - i * 0.12} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
+
+      {/* ── Escapes Allowed ── */}
+      {trackEscapes && escapeData.received.length > 0 && (
+        <ChartCard title="Escapes Allowed" subtitle="Times opponent escaped from you">
+          <ResponsiveContainer width="100%" height={escapeData.received.length * 38 + 8}>
+            <BarChart data={escapeData.received} layout="vertical" barSize={14} margin={{ left: 0, right: 28 }}>
+              <XAxis type="number" hide />
+              <YAxis type="category" dataKey="name" width={112} tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip {...TOOLTIP_STYLE} />
+              <Bar dataKey="value" name="Times" radius={[0, 4, 4, 0]}>
+                {escapeData.received.map((_, i) => <Cell key={i} fill="#ec4899" opacity={1 - i * 0.12} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
+      </>) : (
+        <PremiumGate
+          title="Detaillierte Charts — Premium"
+          description="Schalte Trainingsfrequenz, Positions-Charts, Submissions, Sweeps und Escapes frei."
+        />
       )}
     </div>
   );

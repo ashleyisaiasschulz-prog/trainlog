@@ -169,6 +169,7 @@
 :root:not(.dark) .bg-zinc-700 { background-color: #d4d4d8 !important; }
 :root:not(.dark) .bg-zinc-700\/50 { background-color: #d4d4d880 !important; }
 :root:not(.dark) .min-h-full, :root:not(.dark) .min-h-screen { background-color: #f4f4f5; }
+:root:not(.dark) .text-white { color: #18181b !important; }
 
 /* ── Design tokens as utility classes ── */
 

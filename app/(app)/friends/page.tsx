@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
+import PremiumGate from "@/components/PremiumGate";
 import { UserPlus, Users, Check, X, Search, ChevronRight, LogIn, UsersRound } from "lucide-react";
 import Link from "next/link";
 import BeltBadge from "@/components/BeltBadge";
@@ -148,6 +149,18 @@ export default function FriendsPage() {
         <Link href="/login" className="bg-red-600 hover:bg-red-500 text-white font-semibold px-6 py-3 rounded-xl flex items-center gap-2">
           <LogIn size={16}/> Sign In
         </Link>
+      </div>
+    );
+  }
+
+  if (!profile?.is_premium) {
+    return (
+      <div className="px-4 pt-5 pb-28 flex flex-col gap-4 min-h-[calc(100vh-80px)]">
+        <h1 className="text-xl font-bold tracking-tight text-zinc-100">Friends</h1>
+        <PremiumGate
+          title="Friends & Sparring — Premium"
+          description="Connect with training partners, track head-to-head sparring records, and build your mat community."
+        />
       </div>
     );
   }

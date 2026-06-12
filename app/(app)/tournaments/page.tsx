@@ -1,6 +1,8 @@
 "use client";
 
 import { useTrainingStore } from "@/store/useTrainingStore";
+import { useAuthStore } from "@/store/useAuthStore";
+import PremiumGate from "@/components/PremiumGate";
 import Link from "next/link";
 import { Plus, Trophy, Swords, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
@@ -77,7 +79,20 @@ function TournamentCard({ t }: { t: Tournament }) {
 }
 
 export default function TournamentsPage() {
+  const { profile } = useAuthStore();
   const { tournaments } = useTrainingStore();
+
+  if (!profile?.is_premium) {
+    return (
+      <div className="px-4 pt-5 pb-28 flex flex-col gap-4 min-h-[calc(100vh-80px)]">
+        <h1 className="text-xl font-bold tracking-tight text-zinc-100">Competitions</h1>
+        <PremiumGate
+          title="Competitions — Premium"
+          description="Track tournaments, match results, submissions and placements. Your full competition history in one place."
+        />
+      </div>
+    );
+  }
 
   const allMatches  = tournaments.flatMap(t => t.matches);
   const totalWins   = allMatches.filter(m => m.result === "win").length;

@@ -15,6 +15,7 @@ export interface Profile {
   share_belt: boolean;
   share_sessions: boolean;
   is_trainer: boolean;
+  is_premium: boolean;
 }
 
 interface AuthStore {

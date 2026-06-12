@@ -23,6 +23,8 @@ function rowToSession(r: any): TrainingSession {
     id: r.id, date: r.date, gym: r.gym ?? "", duration: r.duration, gi: r.gi,
     intensity: r.intensity, positions: r.positions ?? [],
     submissionsGiven: r.submissions_given ?? [], submissionsReceived: r.submissions_received ?? [],
+    sweepsGiven: r.sweeps_given ?? [], sweepsReceived: r.sweeps_received ?? [],
+    escapesGiven: r.escapes_given ?? [], escapesReceived: r.escapes_received ?? [],
     notes: r.notes ?? "", whatWorked: r.what_worked ?? "", whatDidntWork: r.what_didnt_work ?? "",
     focus: r.focus ?? "", scheduleId: r.schedule_id ?? undefined,
   };
@@ -32,6 +34,8 @@ function sessionToRow(s: TrainingSession, userId: string) {
     id: s.id, user_id: userId, date: s.date, gym: s.gym, duration: s.duration, gi: s.gi,
     intensity: s.intensity, positions: s.positions,
     submissions_given: s.submissionsGiven ?? [], submissions_received: s.submissionsReceived ?? [],
+    sweeps_given: s.sweepsGiven ?? [], sweeps_received: s.sweepsReceived ?? [],
+    escapes_given: s.escapesGiven ?? [], escapes_received: s.escapesReceived ?? [],
     notes: s.notes, what_worked: s.whatWorked, what_didnt_work: s.whatDidntWork,
     focus: s.focus, schedule_id: s.scheduleId ?? null,
   };

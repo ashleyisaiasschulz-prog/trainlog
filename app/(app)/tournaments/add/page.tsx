@@ -8,6 +8,8 @@ import { Tournament, Match, MatchResult, FinishType, OpponentLevel, SUBMISSIONS,
 import { format } from "date-fns";
 import { ArrowLeft, Plus, Trash2, Check } from "lucide-react";
 import Link from "next/link";
+import { useToastStore } from "@/store/useToastStore";
+import { useT } from "@/lib/i18n";
 
 
 function defaultMatch(): Match {
@@ -68,6 +70,8 @@ function AddTournamentInner() {
   const params = useSearchParams();
   const editId = params.get("edit") ?? undefined;
   const { addTournament, updateTournament, getTournament } = useTrainingStore();
+  const toast = useToastStore();
+  const t = useT();
 
   const existing = editId ? getTournament(editId) : undefined;
   const [form, setForm] = useState<Omit<Tournament, "id">>(existing
@@ -100,17 +104,19 @@ function AddTournamentInner() {
     e.preventDefault();
     if (editId) {
       updateTournament({ ...form, id: editId });
+      toast.show(t.tournamentUpdated, "success");
       setSaved(true);
       setTimeout(() => router.push(`/tournaments/${editId}`), 500);
     } else {
       addTournament({ ...form, id: randomId() });
+      toast.show(t.tournamentSaved, "success");
       setSaved(true);
       setTimeout(() => router.push("/tournaments"), 600);
     }
   };
 
   return (
-    <div className="px-4 pt-6 pb-8">
+    <div className="px-4 pt-6 pb-28">
       <div className="flex items-center gap-3 mb-6">
         <Link href={editId ? `/tournaments/${editId}` : "/tournaments"} className="text-zinc-400 hover:text-white">
           <ArrowLeft size={22} />

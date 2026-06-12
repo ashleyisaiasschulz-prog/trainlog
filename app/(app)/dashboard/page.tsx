@@ -5,10 +5,12 @@ import SessionCard from "@/components/SessionCard";
 import BeltBadge from "@/components/BeltBadge";
 import ScheduleWidget from "@/components/ScheduleWidget";
 import Link from "next/link";
-import { Plus, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, ChevronRight, Timer, BookOpen, HeartPulse, CalendarDays } from "lucide-react";
 import { BELT_ORDER, BELT_LABELS } from "@/lib/types";
-import { differenceInMonths, differenceInYears, differenceInDays } from "date-fns";
+import { differenceInYears, differenceInDays, format, subDays } from "date-fns";
 import { useState } from "react";
+import { useInjuryStore } from "@/store/useInjuryStore";
 
 function timeInBelt(promotions: { toBelt: string; date: string }[], belt: string) {
   const last = [...promotions].reverse().find((p) => p.toBelt === belt);
@@ -32,7 +34,19 @@ type Filter = "all" | "gi" | "nogi";
 
 export default function DashboardPage() {
   const { sessions, currentBelt, currentStripes, promotions } = useTrainingStore();
+  const { injuries } = useInjuryStore();
+  const activeInjuries = injuries.filter((i) => !i.endDate).length;
+  const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
+
+  // Day streak
+  const sessionDays = new Set(sessions.map((s) => s.date));
+  let dayStreak = 0;
+  for (let i = 0; i < 365; i++) {
+    const day = format(subDays(new Date(), i), "yyyy-MM-dd");
+    if (sessionDays.has(day)) dayStreak++;
+    else if (i > 0) break;
+  }
 
   const nextBeltIdx = BELT_ORDER.indexOf(currentBelt) + 1;
   const nextBelt    = nextBeltIdx < BELT_ORDER.length ? BELT_ORDER[nextBeltIdx] : null;
@@ -57,15 +71,31 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-black tracking-tight text-zinc-100">
             Grapplr<span className="text-red-500">.</span>
           </h1>
-          <p className="text-xs text-zinc-500 mt-0.5">Your BJJ journey</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-xs text-zinc-500">Your BJJ journey</p>
+            {dayStreak >= 1 && (
+              <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                🔥 {dayStreak}d
+              </span>
+            )}
+          </div>
         </div>
-        <Link
-          href="/add"
-          className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 active:scale-[0.97] text-white font-semibold rounded-xl transition-all px-4 py-2.5 text-sm"
-        >
-          <Plus size={15} strokeWidth={2.5} /> Log
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/calendar"
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 active:scale-95 transition-all">
+            <CalendarDays size={18} />
+          </Link>
+          <button onClick={() => router.push("/timer")}
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 active:scale-95 transition-all">
+            <Timer size={18} />
+          </button>
+          <Link href="/add"
+            className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 active:scale-[0.97] text-white font-semibold rounded-xl transition-all px-4 py-2.5 text-sm">
+            <Plus size={15} strokeWidth={2.5} /> Log
+          </Link>
+        </div>
       </div>
+
 
       {/* ── Belt card ── */}
       <Link href="/belt">
@@ -89,6 +119,30 @@ export default function DashboardPage() {
           </div>
         </div>
       </Link>
+
+      {/* ── Quick Access Tools ── */}
+      <div className="grid grid-cols-2 gap-2">
+        <Link href="/techniques" className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-3.5 flex items-center gap-3 active:scale-[0.97] transition-all">
+          <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
+            <BookOpen size={17} className="text-blue-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-zinc-200">Techniques</p>
+            <p className="text-[10px] text-zinc-600">Personal notes</p>
+          </div>
+        </Link>
+        <Link href="/injuries" className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-3.5 flex items-center gap-3 active:scale-[0.97] transition-all">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeInjuries > 0 ? "bg-red-500/10" : "bg-zinc-800"}`}>
+            <HeartPulse size={17} className={activeInjuries > 0 ? "text-red-400" : "text-zinc-500"} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-zinc-200">Injuries</p>
+            <p className={`text-[10px] ${activeInjuries > 0 ? "text-red-500" : "text-zinc-600"}`}>
+              {activeInjuries > 0 ? `${activeInjuries} active` : "Track & recover"}
+            </p>
+          </div>
+        </Link>
+      </div>
 
       {/* ── Upcoming sessions ── */}
       <ScheduleWidget />

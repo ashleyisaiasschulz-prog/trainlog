@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy } from "lucide-react";
 import Link from "next/link";
 import { DAY_NAMES_FULL, BELT_COLORS, Belt } from "@/lib/types";
 import { format } from "date-fns";
@@ -45,7 +45,7 @@ export default function GroupDetailPage() {
   const [members, setMembers]   = useState<Member[]>([]);
   const [sessions, setSessions] = useState<TrainerSession[]>([]);
   const [rsvps, setRsvps]       = useState<Rsvp[]>([]);
-  const [tab, setTab]           = useState<"sessions" | "members" | "chat" | "insights">("sessions");
+  const [tab, setTab]           = useState<"sessions" | "members" | "chat" | "insights" | "board">("sessions");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     title: "", description: "", focus: "", date: format(new Date(), "yyyy-MM-dd"),
@@ -137,10 +137,10 @@ export default function GroupDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
-        {([["sessions","Plan",Calendar],["chat","Chat",MessageCircle],["members","Members",Users],["insights","Stats",BarChart2]] as const).map(([k,label,Icon]) => (
+      <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 overflow-x-auto no-scrollbar">
+        {([["sessions","Plan",Calendar],["chat","Chat",MessageCircle],["board","Board",Trophy],["members","Members",Users],["insights","Stats",BarChart2]] as const).map(([k,label,Icon]) => (
           <button key={k} onClick={() => setTab(k)}
-            className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
+            className={`shrink-0 flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
               tab === k ? "bg-zinc-700 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
             }`}>
             <Icon size={13}/> {label}
@@ -344,9 +344,91 @@ export default function GroupDetailPage() {
         <GroupChat groupId={id as string} userId={user?.id ?? ""} nameOf={nameOf} />
       )}
 
+      {/* ── LEADERBOARD TAB ── */}
+      {tab === "board" && (
+        <GroupLeaderboard groupId={id as string} memberIds={members.map(m => m.user_id)} members={members} currentUserId={user?.id ?? ""} />
+      )}
+
       {/* ── INSIGHTS TAB ── */}
       {tab === "insights" && (
         <GroupInsights groupId={id as string} isTrainer={isTrainer} memberCount={members.length} />
+      )}
+    </div>
+  );
+}
+
+/* ── Group Leaderboard ── */
+function GroupLeaderboard({ groupId, memberIds, members, currentUserId }: {
+  groupId: string; memberIds: string[]; members: Member[]; currentUserId: string;
+}) {
+  const sb = createClient();
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+  const month = format(new Date(), "yyyy-MM");
+
+  useEffect(() => {
+    if (memberIds.length === 0) { setLoading(false); return; }
+    sb.from("sessions")
+      .select("user_id")
+      .in("user_id", memberIds)
+      .gte("date", `${month}-01`)
+      .then(({ data }) => {
+        const c: Record<string, number> = {};
+        (data ?? []).forEach((r: any) => { c[r.user_id] = (c[r.user_id] ?? 0) + 1; });
+        setCounts(c);
+        setLoading(false);
+      });
+  }, [memberIds.join(","), month]);
+
+  const ranked = [...members]
+    .sort((a, b) => (counts[b.user_id] ?? 0) - (counts[a.user_id] ?? 0));
+
+  if (loading) {
+    return <div className="py-10 text-center text-zinc-500 text-sm">Loading…</div>;
+  }
+
+  const monthLabel = format(new Date(), "MMMM yyyy");
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Sessions This Month</p>
+        <p className="text-[11px] text-zinc-600">{monthLabel}</p>
+      </div>
+      {ranked.map((m, idx) => {
+        const count = counts[m.user_id] ?? 0;
+        const medal = idx === 0 && count > 0 ? "🥇" : idx === 1 && count > 0 ? "🥈" : idx === 2 && count > 0 ? "🥉" : null;
+        const isMe  = m.user_id === currentUserId;
+        return (
+          <div key={m.user_id}
+            className={`flex items-center gap-3 rounded-2xl px-4 py-3 border ${
+              isMe ? "bg-red-950/20 border-red-500/30" : "bg-zinc-900 border-zinc-800"
+            }`}>
+            <div className="w-6 text-center shrink-0">
+              {medal ? <span className="text-base">{medal}</span>
+                : <span className="text-xs font-bold text-zinc-600">#{idx + 1}</span>}
+            </div>
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
+              {(m.profiles?.display_name || m.profiles?.username || "?")[0].toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-zinc-100 truncate">
+                {m.profiles?.display_name || m.profiles?.username}
+                {isMe && <span className="text-xs text-red-400 font-normal ml-1">(you)</span>}
+              </p>
+              <p className="text-xs text-zinc-500 capitalize">{m.profiles?.belt} belt</p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-lg font-black tabular-nums text-zinc-100">{count}</p>
+              <p className="text-[10px] text-zinc-600">session{count !== 1 ? "s" : ""}</p>
+            </div>
+          </div>
+        );
+      })}
+      {ranked.length === 0 && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center text-sm text-zinc-500">
+          No data yet for this month
+        </div>
       )}
     </div>
   );

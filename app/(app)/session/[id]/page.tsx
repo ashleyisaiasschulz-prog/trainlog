@@ -3,8 +3,10 @@
 import { useParams, useRouter } from "next/navigation";
 import { useTrainingStore } from "@/store/useTrainingStore";
 import { format } from "date-fns";
-import { ArrowLeft, Clock, Zap, Trash2, Swords, Shield, Pencil } from "lucide-react";
+import { ArrowLeft, Clock, Zap, Trash2, Swords, Shield, Pencil, TrendingUp } from "lucide-react";
 import Link from "next/link";
+import { useToastStore } from "@/store/useToastStore";
+import { useT } from "@/lib/i18n";
 
 const INTENSITY_LABEL = ["", "Light", "Easy", "Medium", "Hard", "Beast Mode"];
 const INTENSITY_COLOR = ["", "text-emerald-400", "text-lime-400", "text-amber-400", "text-orange-400", "text-red-400"];
@@ -38,6 +40,8 @@ export default function SessionDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const { getSession, deleteSession } = useTrainingStore();
+  const toast = useToastStore();
+  const t = useT();
   const session = getSession(id as string);
 
   if (!session) return (
@@ -49,6 +53,7 @@ export default function SessionDetailPage() {
   const handleDelete = () => {
     if (confirm("Delete this session?")) {
       deleteSession(session.id);
+      toast.show(t.sessionDeleted, "error");
       router.push("/dashboard");
     }
   };
@@ -56,6 +61,10 @@ export default function SessionDetailPage() {
   const d = new Date(session.date + "T12:00:00");
   const given    = session.submissionsGiven ?? session.submissions ?? [];
   const received = session.submissionsReceived ?? [];
+  const sweepsGiven    = session.sweepsGiven ?? [];
+  const sweepsReceived = session.sweepsReceived ?? [];
+  const escapesGiven    = session.escapesGiven ?? [];
+  const escapesReceived = session.escapesReceived ?? [];
 
   return (
     <div className="px-4 pt-5 pb-28 flex flex-col gap-4">
@@ -130,6 +139,56 @@ export default function SessionDetailPage() {
                 <span className="text-[11px] font-semibold text-red-500">You got tapped</span>
               </div>
               <TagList items={received} color="red" />
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* ── Sweeps ── */}
+      {(sweepsGiven.length > 0 || sweepsReceived.length > 0) && (
+        <Section title="Sweeps">
+          {sweepsGiven.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <TrendingUp size={12} className="text-blue-400" />
+                <span className="text-[11px] font-semibold text-blue-400">You swept them</span>
+              </div>
+              <TagList items={sweepsGiven} color="default" />
+            </div>
+          )}
+          {sweepsGiven.length > 0 && sweepsReceived.length > 0 && <div className="h-px bg-zinc-800" />}
+          {sweepsReceived.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <TrendingUp size={12} className="text-orange-400 rotate-180" />
+                <span className="text-[11px] font-semibold text-orange-400">They swept you</span>
+              </div>
+              <TagList items={sweepsReceived} color="default" />
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* ── Escapes ── */}
+      {(escapesGiven.length > 0 || escapesReceived.length > 0) && (
+        <Section title="Escapes">
+          {escapesGiven.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Zap size={12} className="text-violet-400" />
+                <span className="text-[11px] font-semibold text-violet-400">You escaped</span>
+              </div>
+              <TagList items={escapesGiven} color="default" />
+            </div>
+          )}
+          {escapesGiven.length > 0 && escapesReceived.length > 0 && <div className="h-px bg-zinc-800" />}
+          {escapesReceived.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Zap size={12} className="text-pink-400" />
+                <span className="text-[11px] font-semibold text-pink-400">They escaped from you</span>
+              </div>
+              <TagList items={escapesReceived} color="default" />
             </div>
           )}
         </Section>

@@ -54,7 +54,7 @@ export default function ScheduleWidget() {
 
   // Filter out missed ones, then take first DISPLAY_COUNT
   const visible = all
-    .filter(({ schedule, date }) => getCheckIn(schedule.id, date)?.attended !== false)
+    .filter(({ schedule, date }) => !getCheckIn(schedule.id, date))
     .slice(0, DISPLAY_COUNT);
 
   if (visible.length === 0) {

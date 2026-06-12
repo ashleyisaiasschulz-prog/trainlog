@@ -8,27 +8,51 @@ import { LogIn, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail]       = useState("");
-  const [password, setPassword] = useState("");
-  const [showPw, setShowPw]     = useState(false);
-  const [error, setError]       = useState("");
-  const [loading, setLoading]   = useState(false);
+  const [identifier, setIdentifier] = useState("");
+  const [password,   setPassword]   = useState("");
+  const [showPw,     setShowPw]     = useState(false);
+  const [error,      setError]      = useState("");
+  const [loading,    setLoading]    = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+
+    let email = identifier.trim();
+
+    // If not an email, look up via username
+    if (!email.includes("@")) {
+      try {
+        const res  = await fetch("/api/auth/email-by-username", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: email }),
+        });
+        const data = await res.json() as { email?: string; error?: string };
+        if (!data.email) {
+          setError("Username not found.");
+          setLoading(false);
+          return;
+        }
+        email = data.email;
+      } catch {
+        setError("Connection error. Try again.");
+        setLoading(false);
+        return;
+      }
+    }
+
     const sb = createClient();
     const { error } = await sb.auth.signInWithPassword({ email, password });
     if (error) {
       const msg = error.message.toLowerCase();
-      if (msg.includes("invalid")) setError("Wrong email or password.");
+      if (msg.includes("invalid")) setError("Wrong email/username or password.");
       else if (msg.includes("confirm")) setError("Please confirm your email first.");
       else setError(error.message);
       setLoading(false);
       return;
     }
-    // Full navigation so the session cookie is present everywhere
     window.location.assign("/dashboard");
   };
 
@@ -43,13 +67,15 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="text-xs font-medium text-zinc-500 block mb-1.5">Email</label>
+            <label className="text-xs font-medium text-zinc-500 block mb-1.5">Email or Username</label>
             <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              type="text"
+              value={identifier}
+              onChange={e => setIdentifier(e.target.value)}
+              placeholder="you@example.com or username"
               required
+              autoCapitalize="none"
+              autoCorrect="off"
               className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors"
             />
           </div>

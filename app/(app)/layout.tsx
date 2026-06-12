@@ -3,7 +3,12 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
+import TourOverlay from "@/components/TourOverlay";
 import InstallBanner from "@/components/InstallBanner";
+import TimerRunner from "@/components/TimerRunner";
+import FloatingTimer from "@/components/FloatingTimer";
+import Toast from "@/components/Toast";
+import { LangProvider } from "@/components/LangProvider";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -28,10 +33,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col safe-area-pt">
-      <div className="flex-1 max-w-md mx-auto w-full">{children}</div>
-      <InstallBanner />
-      <Navbar />
-    </div>
+    <LangProvider>
+      <div className="min-h-screen flex flex-col safe-area-pt">
+        <TimerRunner />
+        <FloatingTimer />
+        <div className="flex-1 max-w-md mx-auto w-full">{children}</div>
+        <Toast />
+        <InstallBanner />
+        <TourOverlay />
+        <Navbar />
+      </div>
+    </LangProvider>
   );
 }

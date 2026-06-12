@@ -5,6 +5,8 @@ import { useTrainingStore } from "@/store/useTrainingStore";
 import { format } from "date-fns";
 import { ArrowLeft, Trash2, Swords, TrendingUp, Pencil } from "lucide-react";
 import Link from "next/link";
+import { useToastStore } from "@/store/useToastStore";
+import { useT } from "@/lib/i18n";
 import { FinishType, getPlacementCfg } from "@/lib/types";
 
 const FINISH_LABEL: Record<FinishType, string> = {
@@ -16,23 +18,25 @@ export default function TournamentDetailPage() {
   const { id }  = useParams();
   const router  = useRouter();
   const { getTournament, deleteTournament } = useTrainingStore();
-  const t = getTournament(id as string);
+  const toast = useToastStore();
+  const tr = useT();
+  const tour = getTournament(id as string);
 
-  if (!t) return (
+  if (!tour) return (
     <div className="page flex items-center justify-center min-h-[50vh] text-zinc-500 text-sm">
       Tournament not found.
     </div>
   );
 
-  const wins      = t.matches.filter(m => m.result === "win").length;
-  const losses    = t.matches.filter(m => m.result === "loss").length;
-  const draws     = t.matches.filter(m => m.result === "draw").length;
-  const subWins   = t.matches.filter(m => m.result === "win" && m.finishType === "submission").length;
-  const pointsWins = t.matches.filter(m => m.result === "win" && m.finishType === "points").length;
-  const winRate   = t.matches.length > 0 ? Math.round((wins / t.matches.length) * 100) : null;
+  const wins      = tour.matches.filter(m => m.result === "win").length;
+  const losses    = tour.matches.filter(m => m.result === "loss").length;
+  const draws     = tour.matches.filter(m => m.result === "draw").length;
+  const subWins   = tour.matches.filter(m => m.result === "win" && m.finishType === "submission").length;
+  const pointsWins = tour.matches.filter(m => m.result === "win" && m.finishType === "points").length;
+  const winRate   = tour.matches.length > 0 ? Math.round((wins / tour.matches.length) * 100) : null;
 
   const handleDelete = () => {
-    if (confirm("Delete this tournament?")) { deleteTournament(t.id); router.push("/tournaments"); }
+    if (confirm("Delete this tournament?")) { deleteTournament(tour.id); toast.show(tr.tournamentDeleted, "error"); router.push("/tournaments"); }
   };
 
   return (
@@ -45,7 +49,7 @@ export default function TournamentDetailPage() {
           <ArrowLeft size={18} />
         </Link>
         <div className="flex items-center gap-2">
-          <Link href={`/tournaments/add?edit=${t.id}`}
+          <Link href={`/tournaments/add?edit=${tour.id}`}
             className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-zinc-800 text-zinc-500 hover:text-zinc-200 transition-colors">
             <Pencil size={15} />
           </Link>
@@ -60,12 +64,12 @@ export default function TournamentDetailPage() {
       <div className="space-y-1.5">
         <div className="flex items-center gap-2">
           <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${
-            t.gi ? "bg-blue-500/10 text-blue-400" : "bg-violet-500/10 text-violet-400"
+            tour.gi ? "bg-blue-500/10 text-blue-400" : "bg-violet-500/10 text-violet-400"
           }`}>
-            {t.gi ? "Gi" : "No-Gi"}
+            {tour.gi ? "Gi" : "No-Gi"}
           </span>
-          {t.placement && (() => {
-            const cfg = getPlacementCfg(t.placement);
+          {tour.placement && (() => {
+            const cfg = getPlacementCfg(tour.placement);
             if (!cfg) return null;
             return (
               <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${cfg.bg} ${cfg.color}`}>
@@ -74,16 +78,16 @@ export default function TournamentDetailPage() {
             );
           })()}
         </div>
-        <h1 className="text-xl font-bold tracking-tight text-zinc-100">{t.name}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-zinc-100">{tour.name}</h1>
         <p className="text-sm text-zinc-500">
-          {format(new Date(t.date + "T12:00:00"), "MMMM d, yyyy")}
-          {t.location   ? ` · ${t.location}`   : ""}
-          {t.weightClass ? ` · ${t.weightClass}` : ""}
+          {format(new Date(tour.date + "T12:00:00"), "MMMM d, yyyy")}
+          {tour.location   ? ` · ${tour.location}`   : ""}
+          {tour.weightClass ? ` · ${tour.weightClass}` : ""}
         </p>
       </div>
 
       {/* ── Stats ── */}
-      {t.matches.length > 0 && (
+      {tour.matches.length > 0 && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-4">
           <div className="grid grid-cols-3 gap-3 text-center">
             <div>
@@ -100,7 +104,6 @@ export default function TournamentDetailPage() {
             </div>
           </div>
 
-          {/* Win bar */}
           {wins + losses > 0 && (
             <div className="flex items-center gap-2">
               <div className="flex-1 h-1 bg-zinc-800 rounded-full overflow-hidden">
@@ -129,10 +132,10 @@ export default function TournamentDetailPage() {
       )}
 
       {/* ── Matches ── */}
-      {t.matches.length > 0 && (
+      {tour.matches.length > 0 && (
         <div className="space-y-2">
           <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Matches</p>
-          {t.matches.map((match, idx) => (
+          {tour.matches.map((match, idx) => (
             <div key={match.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-2">
               <div className="flex items-center gap-2.5">
                 <span className="text-xs font-bold text-zinc-600 tabular-nums w-5">#{idx + 1}</span>
@@ -168,14 +171,14 @@ export default function TournamentDetailPage() {
       )}
 
       {/* ── Notes ── */}
-      {t.notes && (
+      {tour.notes && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-2">
           <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Notes</p>
-          <p className="text-sm text-zinc-300 leading-relaxed">{t.notes}</p>
+          <p className="text-sm text-zinc-300 leading-relaxed">{tour.notes}</p>
         </div>
       )}
 
-      {t.matches.length === 0 && (
+      {tour.matches.length === 0 && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 flex flex-col items-center gap-2 text-center">
           <span className="text-3xl">🥊</span>
           <p className="text-sm text-zinc-500">No matches logged</p>

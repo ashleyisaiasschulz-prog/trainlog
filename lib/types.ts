@@ -12,6 +12,10 @@ export interface TrainingSession {
   submissionsReceived: string[]; // submissions you received
   /** @deprecated use submissionsGiven */
   submissions?: string[];
+  sweepsGiven: string[];    // sweeps you hit
+  sweepsReceived: string[]; // sweeps you got hit with
+  escapesGiven: string[];    // escapes you completed
+  escapesReceived: string[]; // opponent escaped from you
   notes: string;
   whatWorked: string;
   whatDidntWork: string;
@@ -58,6 +62,28 @@ export const POSITIONS = [
   "Back Control",
   "Turtle",
   "Leg Entanglement",
+] as const;
+
+export const SWEEP_TYPES = [
+  "Scissor Sweep",
+  "Hip Bump",
+  "Flower Sweep",
+  "Pendulum",
+  "Butterfly Sweep",
+  "X-Guard Sweep",
+  "Lumberjack",
+  "Spider Guard",
+  "Other",
+] as const;
+
+export const ESCAPE_TYPES = [
+  "Mount Escape",
+  "Back Escape",
+  "Side Control Escape",
+  "Knee on Belly Escape",
+  "Turtle Recovery",
+  "Leg Lock Defense",
+  "Other",
 ] as const;
 
 export const SUBMISSIONS = [

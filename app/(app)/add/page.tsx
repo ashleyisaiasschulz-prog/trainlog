@@ -4,12 +4,15 @@ import { randomId } from "@/lib/id";
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTrainingStore } from "@/store/useTrainingStore";
-import { TrainingSession, POSITIONS, SUBMISSIONS } from "@/lib/types";
+import { usePrefsStore } from "@/store/usePrefsStore";
+import { TrainingSession, POSITIONS, SUBMISSIONS, SWEEP_TYPES, ESCAPE_TYPES } from "@/lib/types";
 import TagSelector from "@/components/TagSelector";
 import IntensityPicker from "@/components/IntensityPicker";
 import { format } from "date-fns";
-import { ArrowLeft, Check, Swords, Shield } from "lucide-react";
+import { ArrowLeft, Check, Swords, Shield, TrendingUp, Zap } from "lucide-react";
 import Link from "next/link";
+import { useToastStore } from "@/store/useToastStore";
+import { useT } from "@/lib/i18n";
 
 
 function defaultForm(pre?: Partial<Omit<TrainingSession, "id">>): Omit<TrainingSession, "id"> {
@@ -22,6 +25,10 @@ function defaultForm(pre?: Partial<Omit<TrainingSession, "id">>): Omit<TrainingS
     positions: [],
     submissionsGiven: [],
     submissionsReceived: [],
+    sweepsGiven: [],
+    sweepsReceived: [],
+    escapesGiven: [],
+    escapesReceived: [],
     notes: "",
     whatWorked: "",
     whatDidntWork: "",
@@ -49,6 +56,7 @@ function AddPageInner() {
   const router   = useRouter();
   const params   = useSearchParams();
   const { addSession, updateSession, upsertCheckIn, schedules, getSession } = useTrainingStore();
+  const { trackSubmissions, trackSweeps, trackEscapes } = usePrefsStore();
 
   const scheduleId = params.get("scheduleId") ?? undefined;
   const dateParam  = params.get("date") ?? undefined;
@@ -64,6 +72,8 @@ function AddPageInner() {
         : undefined
   ));
   const [saved, setSaved] = useState(false);
+  const toast = useToastStore();
+  const t = useT();
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -79,6 +89,7 @@ function AddPageInner() {
         upsertCheckIn({ id: randomId(), scheduleId, date: dateParam, attended: true, sessionId });
       }
     }
+    toast.show(editId ? t.sessionUpdated : t.sessionSaved, "success");
     setSaved(true);
     setTimeout(() => router.push(editId ? `/session/${editId}` : "/dashboard"), 500);
   };
@@ -114,7 +125,21 @@ function AddPageInner() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <FieldLabel>Duration (min)</FieldLabel>
-            <input type="number" value={form.duration} onChange={(e) => set("duration", Number(e.target.value))} min={5} max={300} className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors" />
+            <div className="flex items-center bg-zinc-800/60 border border-zinc-800 rounded-xl overflow-hidden">
+              <button type="button"
+                onClick={() => set("duration", Math.max(15, form.duration - 15))}
+                className="px-3 h-full py-3 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700/60 transition-colors text-base font-bold">
+                ‹
+              </button>
+              <span className="flex-1 text-center text-sm font-semibold text-zinc-100 tabular-nums">
+                {form.duration}
+              </span>
+              <button type="button"
+                onClick={() => set("duration", Math.min(300, form.duration + 15))}
+                className="px-3 h-full py-3 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700/60 transition-colors text-base font-bold">
+                ›
+              </button>
+            </div>
           </div>
           <div>
             <FieldLabel>Type</FieldLabel>
@@ -142,7 +167,7 @@ function AddPageInner() {
         </FormSection>
 
         {/* ── Submissions (split) ── */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-4">
+        {trackSubmissions && <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-4">
           <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Submissions</p>
 
           <div className="space-y-2">
@@ -172,7 +197,71 @@ function AddPageInner() {
             </div>
             <TagSelector options={SUBMISSIONS} selected={form.submissionsReceived} onChange={(v) => set("submissionsReceived", v)} activeColor="red" />
           </div>
-        </div>
+        </div>}
+
+        {/* ── Sweeps ── */}
+        {trackSweeps && (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-4">
+            <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Sweeps</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-md bg-blue-500/10 flex items-center justify-center">
+                  <TrendingUp size={11} className="text-blue-400" />
+                </div>
+                <span className="text-xs font-medium text-blue-400">You swept them</span>
+                {form.sweepsGiven.length > 0 && (
+                  <span className="ml-auto text-[11px] font-semibold text-blue-600">{form.sweepsGiven.length}×</span>
+                )}
+              </div>
+              <TagSelector options={SWEEP_TYPES} selected={form.sweepsGiven} onChange={(v) => set("sweepsGiven", v)} activeColor="blue" />
+            </div>
+            <div className="h-px bg-zinc-800" />
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-md bg-orange-500/10 flex items-center justify-center">
+                  <TrendingUp size={11} className="text-orange-400 rotate-180" />
+                </div>
+                <span className="text-xs font-medium text-orange-400">They swept you</span>
+                {form.sweepsReceived.length > 0 && (
+                  <span className="ml-auto text-[11px] font-semibold text-orange-700">{form.sweepsReceived.length}×</span>
+                )}
+              </div>
+              <TagSelector options={SWEEP_TYPES} selected={form.sweepsReceived} onChange={(v) => set("sweepsReceived", v)} activeColor="orange" />
+            </div>
+          </div>
+        )}
+
+        {/* ── Escapes ── */}
+        {trackEscapes && (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-4">
+            <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Escapes</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-md bg-violet-500/10 flex items-center justify-center">
+                  <Zap size={11} className="text-violet-400" />
+                </div>
+                <span className="text-xs font-medium text-violet-400">You escaped</span>
+                {form.escapesGiven.length > 0 && (
+                  <span className="ml-auto text-[11px] font-semibold text-violet-600">{form.escapesGiven.length}×</span>
+                )}
+              </div>
+              <TagSelector options={ESCAPE_TYPES} selected={form.escapesGiven} onChange={(v) => set("escapesGiven", v)} activeColor="purple" />
+            </div>
+            <div className="h-px bg-zinc-800" />
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-md bg-pink-500/10 flex items-center justify-center">
+                  <Zap size={11} className="text-pink-400" />
+                </div>
+                <span className="text-xs font-medium text-pink-400">They escaped from you</span>
+                {form.escapesReceived.length > 0 && (
+                  <span className="ml-auto text-[11px] font-semibold text-pink-700">{form.escapesReceived.length}×</span>
+                )}
+              </div>
+              <TagSelector options={ESCAPE_TYPES} selected={form.escapesReceived} onChange={(v) => set("escapesReceived", v)} activeColor="pink" />
+            </div>
+          </div>
+        )}
 
         {/* ── Notes ── */}
         <FormSection label="Notes">
