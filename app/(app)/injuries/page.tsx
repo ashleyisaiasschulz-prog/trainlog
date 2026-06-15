@@ -7,8 +7,7 @@ import Link from "next/link";
 import { useInjuryStore, bodyPartLabel, injuryTypeLabel, Injury } from "@/store/useInjuryStore";
 import { useTagStore } from "@/store/useTagStore";
 import { format, differenceInDays } from "date-fns";
-
-function randomId() { return Math.random().toString(36).slice(2, 10); }
+import { randomId } from "@/lib/id";
 
 const SEV_LABEL = ["", "Mild", "Moderate", "Serious"];
 const SEV_COLOR = ["", "text-amber-400 bg-amber-500/10", "text-orange-400 bg-orange-500/10", "text-red-400 bg-red-500/10"];

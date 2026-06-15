@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useTrainingStore } from "@/store/useTrainingStore";
+import { useTagStore } from "@/store/useTagStore";
+import { useInjuryStore } from "@/store/useInjuryStore";
 import type { User } from "@supabase/supabase-js";
 
 async function ensureProfile(sb: ReturnType<typeof createClient>, user: User) {
@@ -45,6 +47,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     const hydrate = (user: User) => {
       ensureProfile(sb, user).then(setProfile).catch(() => {});
       loadFromCloud(user.id).catch(() => {});
+      useTagStore.getState().loadFromCloud(user.id).catch(() => {});
+      useInjuryStore.getState().loadFromCloud(user.id).catch(() => {});
     };
 
     // Initial check — decide auth state FAST, then stop loading no matter what
@@ -66,6 +70,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       } else {
         setProfile(null);
         reset();
+        useTagStore.getState().signOut();
+        useInjuryStore.getState().signOut();
       }
     });
 

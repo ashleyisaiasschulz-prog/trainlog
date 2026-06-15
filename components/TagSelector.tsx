@@ -38,32 +38,43 @@ export default function TagSelector({ options, selected, onChange, activeColor =
       {options.map((option) => {
         const count = counts[option] ?? 0;
         const active = count > 0;
+
+        // Inactive: simple pill, tap to add.
+        if (!active) {
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => add(option)}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800/80 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-400 transition-all duration-150"
+            >
+              {option}
+            </button>
+          );
+        }
+
+        // Active: stepper — minus · name ×N · plus. Tap + as often as you like.
         return (
-          <div key={option} className="flex items-center">
-            {/* Main tag — tap to add */}
+          <div key={option} className={`flex items-center rounded-lg overflow-hidden ${ACTIVE[activeColor]}`}>
+            <button
+              type="button"
+              onClick={() => removeOne(option)}
+              aria-label={`Remove one ${option}`}
+              className="px-2 py-1.5 text-sm font-bold opacity-70 hover:opacity-100 transition-opacity"
+            >
+              −
+            </button>
+            <span className="px-1 py-1.5 text-xs font-semibold select-none">
+              {option}{count > 1 ? ` ×${count}` : ""}
+            </span>
             <button
               type="button"
               onClick={() => add(option)}
-              className={`px-3 py-1.5 text-xs font-medium transition-all duration-150 ${
-                active
-                  ? `${ACTIVE[activeColor]} rounded-l-lg ${count > 0 ? "rounded-r-none" : "rounded-lg"}`
-                  : "bg-zinc-800/80 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-400 rounded-lg"
-              }`}
+              aria-label={`Add one ${option}`}
+              className="px-2 py-1.5 text-sm font-bold opacity-70 hover:opacity-100 transition-opacity border-l border-black/10"
             >
-              {option}{count > 1 ? ` ×${count}` : ""}
+              +
             </button>
-
-            {/* Remove button — only shown when selected */}
-            {active && (
-              <button
-                type="button"
-                onClick={() => removeOne(option)}
-                className={`px-1.5 py-1.5 rounded-r-lg text-xs font-bold transition-all duration-150 border-l border-black/10
-                  ${ACTIVE[activeColor]} opacity-70 hover:opacity-100`}
-              >
-                ×
-              </button>
-            )}
           </div>
         );
       })}

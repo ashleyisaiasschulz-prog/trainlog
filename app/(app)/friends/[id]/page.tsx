@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { ArrowLeft, Clock, Calendar, Zap, Lock, Plus, X, Check, StickyNote, Pencil } from "lucide-react";
+import { ArrowLeft, Clock, Calendar, Zap, Lock, Plus, X, Check, StickyNote, Pencil, HeartPulse } from "lucide-react";
 import Link from "next/link";
 import BeltBadge from "@/components/BeltBadge";
 import { usePartnerStore } from "@/store/usePartnerStore";
@@ -39,6 +39,7 @@ export default function FriendStatsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sessions, setSessions] = useState<any[]>([]);
   const [records, setRecords] = useState<SparringRecord[]>([]);
+  const [activeInjuries, setActiveInjuries] = useState<{ body_part: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Log match form state
@@ -76,6 +77,10 @@ export default function FriendStatsPage() {
         .from("training_sessions").select("*").eq("user_id", id)
         .order("date", { ascending: false });
       setSessions(s ?? []);
+
+      const { data: inj } = await sb
+        .from("injuries").select("body_part").eq("user_id", id).is("end_date", null);
+      setActiveInjuries(inj ?? []);
     }
 
     if (user) {
@@ -172,6 +177,11 @@ export default function FriendStatsPage() {
           <ArrowLeft size={18}/>
         </Link>
         <h1 className="text-xl font-bold tracking-tight text-zinc-100">@{profile.username}</h1>
+        {activeInjuries.length > 0 && (
+          <span className="ml-auto flex items-center gap-1.5 bg-red-500/10 text-red-400 text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0">
+            <HeartPulse size={12} /> Currently injured
+          </span>
+        )}
       </div>
 
       {/* ── My Notes on this person ── */}

@@ -176,7 +176,13 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {filtered.map((s) => <SessionCard key={s.id} session={s} />)}
+            {filtered.slice(0, 5).map((s) => <SessionCard key={s.id} session={s} />)}
+            {filtered.length > 5 && (
+              <Link href="/sessions"
+                className="mt-1 flex items-center justify-center gap-1.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 font-semibold py-3 rounded-2xl text-sm transition-all active:scale-[0.99]">
+                Show all {filtered.length} sessions <ChevronRight size={15} />
+              </Link>
+            )}
           </div>
         )}
       </div>
