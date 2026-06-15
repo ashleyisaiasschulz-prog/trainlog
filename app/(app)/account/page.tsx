@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { LogOut, Shield, LogIn, UserPlus, Sun, Moon, Pencil, Check, X, Bell, BellOff, TrendingUp, Zap, Swords, HelpCircle } from "lucide-react";
+import { LogOut, Shield, LogIn, UserPlus, Sun, Moon, Pencil, Check, X, Bell, BellOff, TrendingUp, Zap, Swords, HelpCircle, Tags, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "@/hooks/useTheme";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
@@ -299,6 +299,18 @@ export default function AccountPage() {
             </div>
           </button>
         ))}
+
+        {/* Customize tags */}
+        <Link href="/account/customize" className="w-full flex items-center gap-3 text-left pt-1">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-zinc-800 text-zinc-400">
+            <Tags size={18} />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-zinc-200">Customize Tags</p>
+            <p className="text-xs text-zinc-600">Edit positions, submissions, sweeps, escapes & injuries</p>
+          </div>
+          <ChevronRight size={16} className="text-zinc-600 shrink-0" />
+        </Link>
       </div>
 
       {/* Support */}

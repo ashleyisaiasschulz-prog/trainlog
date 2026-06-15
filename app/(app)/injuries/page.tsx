@@ -4,7 +4,8 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Plus, Trash2, X, Check, HeartPulse, ShieldAlert } from "lucide-react";
 import Link from "next/link";
-import { useInjuryStore, BODY_PARTS, INJURY_TYPES, Injury } from "@/store/useInjuryStore";
+import { useInjuryStore, bodyPartLabel, injuryTypeLabel, Injury } from "@/store/useInjuryStore";
+import { useTagStore } from "@/store/useTagStore";
 import { format, differenceInDays } from "date-fns";
 
 function randomId() { return Math.random().toString(36).slice(2, 10); }
@@ -14,7 +15,7 @@ const SEV_COLOR = ["", "text-amber-400 bg-amber-500/10", "text-orange-400 bg-ora
 
 function blank(): Omit<Injury, "id"> {
   return {
-    bodyPart: "knee", type: "strain", severity: 1,
+    bodyPart: "", type: "", severity: 1,
     startDate: format(new Date(), "yyyy-MM-dd"),
     endDate: null, notes: "",
   };
@@ -26,19 +27,28 @@ export default function InjuriesPage() {
 
 function InjuriesPageInner() {
   const { injuries, add, remove, heal } = useInjuryStore();
+  const { bodyParts, injuryTypes } = useTagStore();
   const [adding, setAdding] = useState(false);
   const [form, setForm]     = useState<Omit<Injury, "id">>(blank());
   const [recovered, setRecovered] = useState(false);
   const searchParams = useSearchParams();
 
+  // Fill in defaults from the customizable tag lists
+  const withDefaults = (base: Omit<Injury, "id">): Omit<Injury, "id"> => ({
+    ...base,
+    bodyPart: base.bodyPart || bodyParts[0] || "",
+    type:     base.type     || injuryTypes[0] || "",
+  });
+
   // Open the form prefilled when arriving from the calendar with ?date=
   useEffect(() => {
     const date = searchParams.get("date");
     if (date) {
-      setForm({ ...blank(), startDate: date });
+      setForm(withDefaults({ ...blank(), startDate: date }));
       setRecovered(false);
       setAdding(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const active = injuries.filter((i) => !i.endDate);
@@ -52,7 +62,7 @@ function InjuriesPageInner() {
   const canSave = !startInFuture && !endBeforeStart && !endMissing;
 
   const openForm = () => {
-    setForm(blank());
+    setForm(withDefaults(blank()));
     setRecovered(false);
     setAdding(true);
   };
@@ -108,7 +118,7 @@ function InjuriesPageInner() {
                 {SEV_LABEL[i.severity]}
               </span>
               <span className="text-xs text-zinc-200 font-medium">
-                {BODY_PARTS.find((b) => b.value === i.bodyPart)?.label} · {INJURY_TYPES.find((t) => t.value === i.type)?.label}
+                {bodyPartLabel(i.bodyPart)} · {injuryTypeLabel(i.type)}
               </span>
               <span className="text-[11px] text-zinc-500 ml-auto">{daysActive(i)}d</span>
             </div>
@@ -124,10 +134,10 @@ function InjuriesPageInner() {
           <div>
             <p className="text-xs text-zinc-500 mb-1.5">Body Part</p>
             <div className="flex flex-wrap gap-1.5">
-              {BODY_PARTS.map(({ value, label }) => (
-                <button key={value} type="button" onClick={() => setForm((f) => ({ ...f, bodyPart: value }))}
+              {bodyParts.map((label) => (
+                <button key={label} type="button" onClick={() => setForm((f) => ({ ...f, bodyPart: label }))}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    form.bodyPart === value
+                    form.bodyPart === label
                       ? "bg-red-500/15 text-red-400 ring-1 ring-red-500/30"
                       : "bg-zinc-800 text-zinc-500"
                   }`}>
@@ -140,10 +150,10 @@ function InjuriesPageInner() {
           <div>
             <p className="text-xs text-zinc-500 mb-1.5">Type</p>
             <div className="flex flex-wrap gap-1.5">
-              {INJURY_TYPES.map(({ value, label }) => (
-                <button key={value} type="button" onClick={() => setForm((f) => ({ ...f, type: value }))}
+              {injuryTypes.map((label) => (
+                <button key={label} type="button" onClick={() => setForm((f) => ({ ...f, type: label }))}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    form.type === value
+                    form.type === label
                       ? "bg-orange-500/15 text-orange-400 ring-1 ring-orange-500/30"
                       : "bg-zinc-800 text-zinc-500"
                   }`}>
@@ -279,8 +289,8 @@ function InjuryCard({ injury: i, onHeal, onDelete, daysActive }: {
             )}
           </div>
           <p className="text-sm font-semibold text-zinc-100">
-            {BODY_PARTS.find((b) => b.value === i.bodyPart)?.label}
-            <span className="text-zinc-500 font-normal"> · {INJURY_TYPES.find((t) => t.value === i.type)?.label}</span>
+            {bodyPartLabel(i.bodyPart)}
+            <span className="text-zinc-500 font-normal"> · {injuryTypeLabel(i.type)}</span>
           </p>
           <p className="text-xs text-zinc-600 mt-0.5">
             {format(new Date(i.startDate + "T12:00:00"), "MMM d, yyyy")}

@@ -34,12 +34,20 @@ export const INJURY_TYPES: { value: InjuryType; label: string }[] = [
 
 export interface Injury {
   id: string;
-  bodyPart: BodyPart;
-  type: InjuryType;
+  bodyPart: string;  // label from useTagStore (custom-editable)
+  type: string;      // label from useTagStore (custom-editable)
   severity: 1 | 2 | 3;
   startDate: string;
   endDate: string | null;
   notes: string;
+}
+
+/** Display helper: maps legacy stored values (e.g. "knee") to a label, otherwise returns as-is. */
+export function bodyPartLabel(v: string) {
+  return BODY_PARTS.find((b) => b.value === v)?.label ?? v;
+}
+export function injuryTypeLabel(v: string) {
+  return INJURY_TYPES.find((t) => t.value === v)?.label ?? v;
 }
 
 interface InjuryStore {

@@ -4,7 +4,8 @@ import { randomId } from "@/lib/id";
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTrainingStore } from "@/store/useTrainingStore";
-import { Tournament, Match, MatchResult, FinishType, OpponentLevel, SUBMISSIONS, Placement, PLACEMENT_CONFIG } from "@/lib/types";
+import { Tournament, Match, MatchResult, FinishType, OpponentLevel, Placement, PLACEMENT_CONFIG } from "@/lib/types";
+import { useTagStore } from "@/store/useTagStore";
 import { format } from "date-fns";
 import { ArrowLeft, Plus, Trash2, Check } from "lucide-react";
 import Link from "next/link";
@@ -70,6 +71,7 @@ function AddTournamentInner() {
   const params = useSearchParams();
   const editId = params.get("edit") ?? undefined;
   const { addTournament, updateTournament, getTournament } = useTrainingStore();
+  const { submissions: SUBMISSIONS } = useTagStore();
   const toast = useToastStore();
   const t = useT();
 

@@ -5,7 +5,8 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTrainingStore } from "@/store/useTrainingStore";
 import { usePrefsStore } from "@/store/usePrefsStore";
-import { TrainingSession, POSITIONS, SUBMISSIONS, SWEEP_TYPES, ESCAPE_TYPES } from "@/lib/types";
+import { TrainingSession } from "@/lib/types";
+import { useTagStore } from "@/store/useTagStore";
 import TagSelector from "@/components/TagSelector";
 import IntensityPicker from "@/components/IntensityPicker";
 import { format } from "date-fns";
@@ -57,6 +58,7 @@ function AddPageInner() {
   const params   = useSearchParams();
   const { addSession, updateSession, upsertCheckIn, schedules, getSession } = useTrainingStore();
   const { trackSubmissions, trackSweeps, trackEscapes } = usePrefsStore();
+  const { positions: POSITIONS, submissions: SUBMISSIONS, sweeps: SWEEP_TYPES, escapes: ESCAPE_TYPES } = useTagStore();
 
   const scheduleId = params.get("scheduleId") ?? undefined;
   const dateParam  = params.get("date") ?? undefined;

@@ -9,7 +9,7 @@ import Link from "next/link";
 import BeltBadge from "@/components/BeltBadge";
 import { usePartnerStore } from "@/store/usePartnerStore";
 import { format } from "date-fns";
-import { SUBMISSIONS } from "@/lib/types";
+import { useTagStore } from "@/store/useTagStore";
 import type { Belt } from "@/lib/types";
 
 interface Profile {
@@ -43,6 +43,7 @@ export default function FriendStatsPage() {
 
   // Log match form state
   const { partners, add: addPartner, update: updatePartner } = usePartnerStore();
+  const { submissions: SUBMISSIONS } = useTagStore();
   const partnerNote = partners.find((p) => p.name === profile?.username || p.name === profile?.display_name);
   const [noteText, setNoteText] = useState("");
   const [editingNote, setEditingNote] = useState(false);
