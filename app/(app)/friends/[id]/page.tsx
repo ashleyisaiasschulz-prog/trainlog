@@ -9,6 +9,7 @@ import Link from "next/link";
 import BeltBadge from "@/components/BeltBadge";
 import { usePartnerStore } from "@/store/usePartnerStore";
 import { format, startOfMonth } from "date-fns";
+import RangeTabs, { Range, inRange } from "@/components/RangeTabs";
 import { useTagStore } from "@/store/useTagStore";
 import type { Belt } from "@/lib/types";
 
@@ -40,6 +41,7 @@ export default function FriendStatsPage() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [records, setRecords] = useState<SparringRecord[]>([]);
   const [activeInjuries, setActiveInjuries] = useState<{ body_part: string }[]>([]);
+  const [range, setRange] = useState<Range>("all");
   const [loading, setLoading] = useState(true);
 
   // Log match form state
@@ -141,9 +143,10 @@ export default function FriendStatsPage() {
   const monthStart = startOfMonth(new Date());
   const thisMonth = sessions.filter(s => new Date(s.date + "T12:00:00") >= monthStart).length;
 
+  const rangedSessions = sessions.filter((s) => inRange(s.date, range));
   const topItems = (key: string) => {
     const counts: Record<string, number> = {};
-    sessions.forEach(s => (s[key] ?? []).forEach((x: string) => (counts[x] = (counts[x] || 0) + 1)));
+    rangedSessions.forEach(s => (s[key] ?? []).forEach((x: string) => (counts[x] = (counts[x] || 0) + 1)));
     return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
   };
   const positions = topItems("positions");
@@ -418,6 +421,13 @@ export default function FriendStatsPage() {
               </div>
             ))}
           </div>
+
+          {sessions.length > 0 && (
+            <div className="flex items-center gap-3">
+              <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest shrink-0">Breakdown</p>
+              <RangeTabs value={range} onChange={setRange} />
+            </div>
+          )}
 
           {positions.length > 0 && (
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">

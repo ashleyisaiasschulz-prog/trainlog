@@ -4,12 +4,13 @@ import { useTrainingStore } from "@/store/useTrainingStore";
 import { usePrefsStore } from "@/store/usePrefsStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import PremiumGate from "@/components/PremiumGate";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie, Legend,
 } from "recharts";
 import { format, eachWeekOfInterval, subWeeks, addWeeks, startOfMonth, startOfWeek, subDays } from "date-fns";
+import RangeTabs, { Range, inRange } from "@/components/RangeTabs";
 import { computeStreak } from "@/components/StreakWidget";
 import Link from "next/link";
 
@@ -40,6 +41,10 @@ export default function StatsPage() {
   const { trackSubmissions, trackSweeps, trackEscapes } = usePrefsStore();
   const { profile } = useAuthStore();
 
+  const [range, setRange] = useState<Range>("all");
+  const rangedSessions = useMemo(() => sessions.filter((s) => inRange(s.date, range)), [sessions, range]);
+  const rangedTournaments = useMemo(() => tournaments.filter((t) => inRange(t.date, range)), [tournaments, range]);
+
   const weeklyData = useMemo(() => {
     const weeks = eachWeekOfInterval({ start: subWeeks(new Date(), 7), end: new Date() });
     return weeks.map((week, i) => {
@@ -58,52 +63,52 @@ export default function StatsPage() {
 
   const positionData = useMemo(() => {
     const c: Record<string, number> = {};
-    sessions.forEach(s => s.positions.forEach(p => (c[p] = (c[p] || 0) + 1)));
+    rangedSessions.forEach(s => s.positions.forEach(p => (c[p] = (c[p] || 0) + 1)));
     return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, value]) => ({ name, value }));
-  }, [sessions]);
+  }, [rangedSessions]);
 
   const submissionData = useMemo(() => {
     const given: Record<string, number> = {};
     const received: Record<string, number> = {};
-    sessions.forEach(s => {
+    rangedSessions.forEach(s => {
       (s.submissionsGiven ?? s.submissions ?? []).forEach(sub => (given[sub] = (given[sub] || 0) + 1));
       (s.submissionsReceived ?? []).forEach(sub => (received[sub] = (received[sub] || 0) + 1));
     });
     const toArr = (obj: Record<string, number>) =>
       Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, value]) => ({ name, value }));
     return { given: toArr(given), received: toArr(received) };
-  }, [sessions]);
+  }, [rangedSessions]);
 
   const sweepData = useMemo(() => {
     const given: Record<string, number> = {};
     const received: Record<string, number> = {};
-    sessions.forEach(s => {
+    rangedSessions.forEach(s => {
       (s.sweepsGiven ?? []).forEach(x => (given[x] = (given[x] || 0) + 1));
       (s.sweepsReceived ?? []).forEach(x => (received[x] = (received[x] || 0) + 1));
     });
     const toArr = (obj: Record<string, number>) =>
       Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, value]) => ({ name, value }));
     return { given: toArr(given), received: toArr(received) };
-  }, [sessions]);
+  }, [rangedSessions]);
 
   const escapeData = useMemo(() => {
     const given: Record<string, number> = {};
     const received: Record<string, number> = {};
-    sessions.forEach(s => {
+    rangedSessions.forEach(s => {
       (s.escapesGiven ?? []).forEach(x => (given[x] = (given[x] || 0) + 1));
       (s.escapesReceived ?? []).forEach(x => (received[x] = (received[x] || 0) + 1));
     });
     const toArr = (obj: Record<string, number>) =>
       Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, value]) => ({ name, value }));
     return { given: toArr(given), received: toArr(received) };
-  }, [sessions]);
+  }, [rangedSessions]);
 
   const giRatio = useMemo(() => [
-    { name: "Gi",     value: sessions.filter(s =>  s.gi).length },
-    { name: "No-Gi",  value: sessions.filter(s => !s.gi).length },
-  ], [sessions]);
+    { name: "Gi",     value: rangedSessions.filter(s =>  s.gi).length },
+    { name: "No-Gi",  value: rangedSessions.filter(s => !s.gi).length },
+  ], [rangedSessions]);
 
-  const allMatches  = tournaments.flatMap(t => t.matches);
+  const allMatches  = rangedTournaments.flatMap(t => t.matches);
   const compWins    = allMatches.filter(m => m.result === "win").length;
   const compLosses  = allMatches.filter(m => m.result === "loss").length;
   const subWins     = allMatches.filter(m => m.result === "win"  && m.finishType === "submission").length;
@@ -269,6 +274,12 @@ export default function StatsPage() {
       </div>
 
       {profile?.is_premium ? (<>
+
+      {/* ── Time range (controls the charts below) ── */}
+      <div className="flex items-center gap-3">
+        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest shrink-0">Charts</p>
+        <RangeTabs value={range} onChange={setRange} />
+      </div>
 
       {/* ── Weekly bar chart ── */}
       <ChartCard title="Training Frequency" subtitle="Sessions per week — last 8 weeks">
