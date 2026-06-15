@@ -84,18 +84,29 @@ export const useTagStore = create<TagStore>()(
         loadFromCloud: async (userId) => {
           set({ userId });
           const { data } = await sb().from("profiles").select("custom_tags").eq("id", userId).maybeSingle();
-          const cloud = data?.custom_tags as Partial<TagMap> | null | undefined;
-          if (cloud && typeof cloud === "object") {
-            // Take each category from the cloud when present, else keep defaults.
-            const next: Partial<TagStore> = {};
-            for (const cat of CATEGORIES) {
-              if (Array.isArray(cloud[cat])) next[cat] = cloud[cat]!;
+          const cloud = (data?.custom_tags ?? null) as Partial<TagMap> | null;
+
+          // Union of cloud + this device's palette, so a tag added on any
+          // device is never lost when another device syncs first.
+          const union = (a: string[], b: string[]) => {
+            const seen = new Set<string>();
+            const out: string[] = [];
+            for (const v of [...a, ...b]) {
+              const k = v.toLowerCase();
+              if (!seen.has(k)) { seen.add(k); out.push(v); }
             }
-            set(next);
-          } else {
-            // No cloud palette yet → seed it from whatever this device has.
-            sb().from("profiles").update({ custom_tags: snapshot(get()) }).eq("id", userId).then();
+            return out;
+          };
+
+          const merged: Partial<TagStore> = {};
+          for (const cat of CATEGORIES) {
+            const cloudArr = Array.isArray(cloud?.[cat]) ? cloud![cat]! : DEFAULTS[cat];
+            merged[cat] = union(cloudArr, get()[cat]);
           }
+          set(merged);
+
+          // Write the converged palette back so other devices pick it up.
+          sb().from("profiles").update({ custom_tags: snapshot(get()) }).eq("id", userId).then();
         },
 
         signOut: () => set({ userId: null, ...DEFAULTS }),
