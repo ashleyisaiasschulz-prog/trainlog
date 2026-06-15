@@ -8,7 +8,7 @@ import { ArrowLeft, Clock, Calendar, Zap, Lock, Plus, X, Check, StickyNote, Penc
 import Link from "next/link";
 import BeltBadge from "@/components/BeltBadge";
 import { usePartnerStore } from "@/store/usePartnerStore";
-import { format } from "date-fns";
+import { format, startOfWeek } from "date-fns";
 import { useTagStore } from "@/store/useTagStore";
 import type { Belt } from "@/lib/types";
 
@@ -138,7 +138,8 @@ export default function FriendStatsPage() {
 
   // Stats
   const totalHours = Math.round(sessions.reduce((a, s) => a + (s.duration || 0), 0) / 60);
-  const thisWeek = sessions.filter(s => new Date(s.date) >= new Date(Date.now() - 7 * 864e5)).length;
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const thisWeek = sessions.filter(s => new Date(s.date + "T12:00:00") >= weekStart).length;
 
   const topItems = (key: string) => {
     const counts: Record<string, number> = {};
