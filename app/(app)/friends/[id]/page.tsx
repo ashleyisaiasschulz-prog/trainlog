@@ -8,7 +8,7 @@ import { ArrowLeft, Clock, Calendar, Zap, Lock, Plus, X, Check, StickyNote, Penc
 import Link from "next/link";
 import BeltBadge from "@/components/BeltBadge";
 import { usePartnerStore } from "@/store/usePartnerStore";
-import { format, startOfWeek } from "date-fns";
+import { format, startOfMonth } from "date-fns";
 import { useTagStore } from "@/store/useTagStore";
 import type { Belt } from "@/lib/types";
 
@@ -138,8 +138,8 @@ export default function FriendStatsPage() {
 
   // Stats
   const totalHours = Math.round(sessions.reduce((a, s) => a + (s.duration || 0), 0) / 60);
-  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-  const thisWeek = sessions.filter(s => new Date(s.date + "T12:00:00") >= weekStart).length;
+  const monthStart = startOfMonth(new Date());
+  const thisMonth = sessions.filter(s => new Date(s.date + "T12:00:00") >= monthStart).length;
 
   const topItems = (key: string) => {
     const counts: Record<string, number> = {};
@@ -409,7 +409,7 @@ export default function FriendStatsPage() {
             {[
               { icon: Calendar, label: sessions.length === 1 ? "Session" : "Sessions", value: sessions.length },
               { icon: Clock, label: "Hours", value: `${totalHours}h` },
-              { icon: Zap, label: "This week", value: thisWeek },
+              { icon: Zap, label: "This month", value: thisMonth },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5 text-center">
                 <Icon size={14} className="text-zinc-600 mx-auto mb-1.5"/>
