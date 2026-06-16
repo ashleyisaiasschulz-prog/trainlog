@@ -260,7 +260,7 @@ function GroupDetailInner() {
         {([
           ...(isGym ? [["sessions","Plan",Calendar]] as const : []),
           ["chat","Chat",MessageCircle],["board","Board",Trophy],["members","Members",Users],
-          ...(isGym ? [["insights","Stats",BarChart2]] as const : []),
+          ...(canCoach ? [["insights","Stats",BarChart2]] as const : []),
         ] as const).map(([k,label,Icon]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`shrink-0 flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
@@ -574,13 +574,14 @@ function GroupDetailInner() {
 
       {/* ── LEADERBOARD TAB ── */}
       {tab === "board" && (
-        <GroupLeaderboard groupId={id as string} memberIds={members.map(m => m.user_id)} members={members} currentUserId={user?.id ?? ""} />
+        <GroupLeaderboard members={members} currentUserId={user?.id ?? ""}
+          isGym={isGym} attendance={attendance} />
       )}
 
       {/* ── INSIGHTS TAB ── */}
-      {tab === "insights" && isGym && (
+      {tab === "insights" && canCoach && (
         <div className="space-y-4">
-          {canCoach && <AttendanceOverview attendance={attendance} members={members} />}
+          <AttendanceOverview attendance={attendance} members={members} />
           <GroupInsights groupId={id as string} isTrainer={canCoach} memberCount={members.length} />
         </div>
       )}
@@ -684,15 +685,28 @@ function AttendanceOverview({ attendance, members }: {
 }
 
 /* ── Group Leaderboard ── */
-function GroupLeaderboard({ groupId, memberIds, members, currentUserId }: {
-  groupId: string; memberIds: string[]; members: Member[]; currentUserId: string;
+function GroupLeaderboard({ members, currentUserId, isGym, attendance }: {
+  members: Member[]; currentUserId: string;
+  isGym: boolean; attendance: { user_id: string; date: string }[];
 }) {
   const sb = createClient();
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const month = format(new Date(), "yyyy-MM");
+  const memberIds = members.map(m => m.user_id);
 
   useEffect(() => {
+    // Gym = count actual class check-ins this month; free group = count
+    // members' self-logged sessions this month.
+    if (isGym) {
+      const c: Record<string, number> = {};
+      attendance
+        .filter(a => a.date >= `${month}-01`)
+        .forEach(a => { c[a.user_id] = (c[a.user_id] ?? 0) + 1; });
+      setCounts(c);
+      setLoading(false);
+      return;
+    }
     if (memberIds.length === 0) { setLoading(false); return; }
     sb.from("sessions")
       .select("user_id")
@@ -704,7 +718,8 @@ function GroupLeaderboard({ groupId, memberIds, members, currentUserId }: {
         setCounts(c);
         setLoading(false);
       });
-  }, [memberIds.join(","), month]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [memberIds.join(","), month, isGym, attendance.length]);
 
   const ranked = [...members]
     .sort((a, b) => (counts[b.user_id] ?? 0) - (counts[a.user_id] ?? 0));
@@ -718,7 +733,9 @@ function GroupLeaderboard({ groupId, memberIds, members, currentUserId }: {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Sessions This Month</p>
+        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">
+          {isGym ? "Classes Attended This Month" : "Sessions This Month"}
+        </p>
         <p className="text-[11px] text-zinc-600">{monthLabel}</p>
       </div>
       {ranked.map((m, idx) => {
@@ -746,7 +763,7 @@ function GroupLeaderboard({ groupId, memberIds, members, currentUserId }: {
             </div>
             <div className="shrink-0 text-right">
               <p className="text-lg font-black tabular-nums text-zinc-100">{count}</p>
-              <p className="text-[10px] text-zinc-600">session{count !== 1 ? "s" : ""}</p>
+              <p className="text-[10px] text-zinc-600">{isGym ? (count === 1 ? "class" : "classes") : (count === 1 ? "session" : "sessions")}</p>
             </div>
           </div>
         );

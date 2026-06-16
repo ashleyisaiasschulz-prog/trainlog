@@ -85,10 +85,6 @@ export default function DashboardPage() {
             className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 active:scale-95 transition-all">
             <CalendarDays size={18} />
           </Link>
-          <Link href="/tournaments"
-            className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 active:scale-95 transition-all">
-            <Trophy size={18} />
-          </Link>
           <button onClick={() => router.push("/timer")}
             className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 active:scale-95 transition-all">
             <Timer size={18} />
@@ -147,6 +143,18 @@ export default function DashboardPage() {
           </div>
         </Link>
       </div>
+
+      {/* ── Competitions ── */}
+      <Link href="/tournaments" className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-3.5 flex items-center gap-3 active:scale-[0.99] transition-all">
+        <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+          <Trophy size={17} className="text-amber-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-zinc-200">Competitions</p>
+          <p className="text-[10px] text-zinc-600">Tournaments, matches & medals</p>
+        </div>
+        <ChevronRight size={16} className="text-zinc-700 shrink-0" />
+      </Link>
 
       {/* ── Upcoming sessions ── */}
       <ScheduleWidget />

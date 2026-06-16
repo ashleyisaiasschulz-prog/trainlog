@@ -12,6 +12,7 @@ import {
 import { format, eachWeekOfInterval, subWeeks, addWeeks, startOfMonth, startOfWeek, subDays } from "date-fns";
 import RangeTabs, { Range, inRange } from "@/components/RangeTabs";
 import { computeStreak } from "@/components/StreakWidget";
+import { Belt, BELT_ORDER, BELT_LABELS, getPlacementCfg } from "@/lib/types";
 import Link from "next/link";
 
 const TOOLTIP_STYLE = {
@@ -37,13 +38,48 @@ function ChartCard({ title, subtitle, children }: { title: string; subtitle?: st
 }
 
 export default function StatsPage() {
-  const { sessions, tournaments } = useTrainingStore();
+  const { sessions, tournaments, promotions } = useTrainingStore();
   const { trackSubmissions, trackSweeps, trackEscapes } = usePrefsStore();
   const { profile } = useAuthStore();
 
   const [range, setRange] = useState<Range>("all");
+  const [compBelt, setCompBelt] = useState<"all" | Belt>("all");
+
+  // Belts the user has held (from promotions), in belt order
+  const heldBelts = useMemo(() => {
+    const set = new Set(promotions.map(p => p.toBelt as Belt));
+    return BELT_ORDER.filter(b => set.has(b));
+  }, [promotions]);
+
+  // Date window during which a given belt was held
+  const beltPeriod = (belt: Belt): { start: string; end: string } => {
+    const sorted = [...promotions].sort((a, b) => a.date.localeCompare(b.date));
+    const idx = sorted.findIndex(p => p.toBelt === belt);
+    if (idx === -1) return { start: "0000-01-01", end: "9999-12-31" };
+    const start = sorted[idx].date;
+    const end = sorted[idx + 1]?.date ?? "9999-12-31";
+    return { start, end };
+  };
+
+  // Competitions filtered by the selected belt (independent of the chart range)
+  const compTournaments = useMemo(() => {
+    if (compBelt === "all") return tournaments;
+    const { start, end } = beltPeriod(compBelt);
+    return tournaments.filter(t => t.date >= start && t.date < end);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tournaments, compBelt, promotions]);
+
+  const medals = useMemo(() => {
+    const c = { gold: 0, silver: 0, bronze: 0 };
+    compTournaments.forEach(t => {
+      const key = getPlacementCfg(t.placement)?.label?.toLowerCase();
+      if (key === "gold") c.gold++;
+      else if (key === "silver") c.silver++;
+      else if (key === "bronze") c.bronze++;
+    });
+    return c;
+  }, [compTournaments]);
   const rangedSessions = useMemo(() => sessions.filter((s) => inRange(s.date, range)), [sessions, range]);
-  const rangedTournaments = useMemo(() => tournaments.filter((t) => inRange(t.date, range)), [tournaments, range]);
 
   const weeklyData = useMemo(() => {
     const weeks = eachWeekOfInterval({ start: subWeeks(new Date(), 7), end: new Date() });
@@ -108,7 +144,7 @@ export default function StatsPage() {
     { name: "No-Gi",  value: rangedSessions.filter(s => !s.gi).length },
   ], [rangedSessions]);
 
-  const allMatches  = rangedTournaments.flatMap(t => t.matches);
+  const allMatches  = compTournaments.flatMap(t => t.matches);
   const compWins    = allMatches.filter(m => m.result === "win").length;
   const compLosses  = allMatches.filter(m => m.result === "loss").length;
   const subWins     = allMatches.filter(m => m.result === "win"  && m.finishType === "submission").length;
@@ -311,8 +347,41 @@ export default function StatsPage() {
       )}
 
       {/* ── Competition ── */}
-      {allMatches.length > 0 && (
+      {tournaments.length > 0 && (
         <ChartCard title="Competition Record">
+          {/* Belt filter — Total + belts you've held */}
+          {heldBelts.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              <button onClick={() => setCompBelt("all")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${compBelt === "all" ? "bg-zinc-700 text-zinc-100" : "bg-zinc-800 text-zinc-500 hover:text-zinc-300"}`}>
+                Total
+              </button>
+              {heldBelts.map(b => (
+                <button key={b} onClick={() => setCompBelt(b)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${compBelt === b ? "bg-zinc-700 text-zinc-100" : "bg-zinc-800 text-zinc-500 hover:text-zinc-300"}`}>
+                  {BELT_LABELS[b]}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Medals */}
+          <div className="grid grid-cols-3 gap-3 text-center">
+            {[
+              { v: medals.gold,   emoji: "🥇", label: "Gold"   },
+              { v: medals.silver, emoji: "🥈", label: "Silver" },
+              { v: medals.bronze, emoji: "🥉", label: "Bronze" },
+            ].map(({ v, emoji, label }) => (
+              <div key={label} className="bg-zinc-800/50 rounded-xl py-2.5">
+                <p className="text-xl font-bold tabular-nums text-zinc-100">{emoji} {v}</p>
+                <p className="text-[11px] text-zinc-600 mt-0.5">{label}</p>
+              </div>
+            ))}
+          </div>
+
+          {allMatches.length === 0 ? (
+            <p className="text-xs text-zinc-500 text-center py-2">No matches logged{compBelt !== "all" ? ` as ${BELT_LABELS[compBelt]}` : ""}.</p>
+          ) : (<>
           <div className="grid grid-cols-3 gap-3 text-center">
             {[
               { v: compWins,   label: "Wins",   cls: "text-emerald-400" },
@@ -332,6 +401,7 @@ export default function StatsPage() {
                 style={{ width: `${allMatches.length > 0 ? Math.round(compWins / allMatches.length * 100) : 0}%` }} />
             </div>
           </div>
+          </>)}
           {/* How matches ended — wins & losses by method, one Kreisdiagramm */}
           {recordBreakdown.length > 0 && (
             <div>
@@ -348,6 +418,10 @@ export default function StatsPage() {
               </ResponsiveContainer>
             </div>
           )}
+          <Link href="/tournaments"
+            className="flex items-center justify-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold py-2.5 rounded-xl text-sm transition-colors">
+            Manage competitions →
+          </Link>
         </ChartCard>
       )}
 

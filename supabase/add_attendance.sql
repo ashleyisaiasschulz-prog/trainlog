@@ -23,9 +23,9 @@ drop policy if exists "att_delete" on attendance;
 create policy "att_insert" on attendance for insert
   with check (auth.uid() = user_id and is_group_member(group_id, auth.uid()));
 
--- Read: your own attendance, or any coach of the gym.
+-- Read: any member of the group (needed for the attendance leaderboard).
 create policy "att_read" on attendance for select
-  using (auth.uid() = user_id or is_group_coach(group_id, auth.uid()));
+  using (auth.uid() = user_id or is_group_member(group_id, auth.uid()));
 
 -- Delete: your own (mis-scan) or a coach.
 create policy "att_delete" on attendance for delete
