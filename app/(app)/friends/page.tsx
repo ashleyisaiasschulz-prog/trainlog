@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import PremiumGate from "@/components/PremiumGate";
-import { UserPlus, Users, Check, X, Search, ChevronRight, LogIn, UsersRound } from "lucide-react";
+import { UserPlus, Users, Check, X, Search, ChevronRight, LogIn, Plus, Hash } from "lucide-react";
 import Link from "next/link";
 import BeltBadge from "@/components/BeltBadge";
 import type { Belt } from "@/lib/types";
@@ -174,18 +174,8 @@ export default function FriendsPage() {
       <div className="px-4 pt-5 pb-28 flex flex-col gap-4 min-h-[calc(100vh-80px)]">
         <h1 className="text-xl font-bold tracking-tight text-zinc-100">Friends</h1>
 
-        {/* Groups are free — train with your gym */}
-        <Link href="/groups"
-          className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4 flex items-center gap-3 active:scale-[0.99] transition-all">
-          <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0">
-            <UsersRound size={20} className="text-red-400" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-zinc-100">Groups</p>
-            <p className="text-xs text-zinc-500">Join your gym, see the leaderboard & log classes — free</p>
-          </div>
-          <ChevronRight size={16} className="text-zinc-600 shrink-0" />
-        </Link>
+        {/* Training groups are free — social circles with friends */}
+        <SocialGroups />
 
         <PremiumGate
           title="Friends & Sparring — Premium"
@@ -199,11 +189,10 @@ export default function FriendsPage() {
     <div className="px-4 pt-5 pb-28 space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold tracking-tight text-zinc-100">Friends</h1>
-        <Link href="/groups"
-          className="flex items-center gap-1.5 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 text-sm font-medium px-3 py-2 rounded-xl transition-colors">
-          <UsersRound size={15}/> Groups
-        </Link>
       </div>
+
+      {/* Training groups (social, free) */}
+      <SocialGroups />
 
       {/* Search */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
@@ -324,6 +313,119 @@ export default function FriendsPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ── Social training groups (free, is_gym=false) ── */
+interface SGroup {
+  id: string; name: string; gym: string | null; trainer_id: string;
+  invite_code: string; is_gym?: boolean | null;
+}
+
+function SocialGroups() {
+  const { user } = useAuthStore();
+  const sb = createClient();
+  const [groups, setGroups]       = useState<SGroup[]>([]);
+  const [showCreate, setShowCreate] = useState(false);
+  const [showJoin, setShowJoin]   = useState(false);
+  const [name, setName]           = useState("");
+  const [code, setCode]           = useState("");
+  const [error, setError]         = useState("");
+
+  const load = async () => {
+    if (!user) return;
+    const { data } = await sb
+      .from("group_members")
+      .select("groups(id,name,gym,trainer_id,invite_code,is_gym)")
+      .eq("user_id", user.id);
+    const all = (data?.map((d: any) => d.groups).filter(Boolean) ?? []) as SGroup[];
+    setGroups(all.filter(g => !g.is_gym));
+  };
+
+  useEffect(() => { load(); }, [user]);
+
+  const create = async () => {
+    if (!user || !name.trim()) return;
+    setError("");
+    const { data, error: err } = await sb.from("groups")
+      .insert({ name: name.trim(), trainer_id: user.id })
+      .select().single();
+    if (err || !data) { setError("Could not create group"); return; }
+    await sb.from("group_members").insert({ group_id: data.id, user_id: user.id, role: "trainer" });
+    setName(""); setShowCreate(false);
+    await load();
+  };
+
+  const join = async () => {
+    if (!user || !code.trim()) return;
+    setError("");
+    const { data: result, error: err } = await sb.rpc("join_group", { p_code: code.trim() });
+    if (err) { setError(err.message); return; }
+    if (result === "not_found")      { setError("Invalid invite code"); return; }
+    if (result === "already_member") { setError("You're already in this group"); return; }
+    setCode(""); setShowJoin(false);
+    await load();
+  };
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Training Groups</p>
+        <div className="flex gap-1.5">
+          <button onClick={() => { setShowJoin(v=>!v); setShowCreate(false); setError(""); }}
+            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1">
+            <Hash size={12}/> Join
+          </button>
+          <button onClick={() => { setShowCreate(v=>!v); setShowJoin(false); setError(""); }}
+            className="bg-red-600 hover:bg-red-500 text-white font-semibold px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1">
+            <Plus size={12}/> Create
+          </button>
+        </div>
+      </div>
+
+      {showJoin && (
+        <div className="flex gap-2">
+          <input value={code} onChange={e => setCode(e.target.value.toUpperCase())}
+            placeholder="ABC123" maxLength={6}
+            className="flex-1 bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 tracking-widest font-mono uppercase" />
+          <button onClick={join} className="bg-red-600 hover:bg-red-500 text-white font-semibold px-4 rounded-xl text-sm">Join</button>
+        </div>
+      )}
+
+      {showCreate && (
+        <div className="flex gap-2">
+          <input value={name} onChange={e => setName(e.target.value)}
+            placeholder="Group name (e.g. Open Mat Crew)"
+            className="flex-1 bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600" />
+          <button onClick={create} disabled={!name.trim()} className="bg-red-600 hover:bg-red-500 text-white font-semibold px-4 rounded-xl text-sm disabled:opacity-30">Create</button>
+        </div>
+      )}
+
+      {error && <p className="text-xs text-red-400">{error}</p>}
+
+      {groups.length === 0 ? (
+        <p className="text-xs text-zinc-600">No training groups yet — create one or join with a code.</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {groups.map(g => (
+            <Link key={g.id} href={`/groups/${g.id}`}
+              className="flex items-center gap-3 bg-zinc-800/40 hover:bg-zinc-800 rounded-xl px-3 py-2.5 transition-colors">
+              <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 font-bold text-sm shrink-0">
+                {g.name[0].toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-zinc-100 truncate">{g.name}</p>
+                <p className="text-[11px] text-zinc-500">Code <span className="font-mono text-zinc-400">{g.invite_code}</span></p>
+              </div>
+              {g.trainer_id === user?.id && (
+                <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md shrink-0">Admin</span>
+              )}
+              <ChevronRight size={14} className="text-zinc-700 shrink-0"/>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -20,13 +20,13 @@ export async function POST(req: NextRequest) {
     });
     const session = await res.json() as {
       payment_status: string;
-      metadata?: { type?: string; groupId?: string };
+      metadata?: { type?: string; groupId?: string; gymName?: string; userId?: string };
     };
 
     if (!res.ok || session.payment_status !== "paid") {
       return NextResponse.json({ error: "Payment not confirmed" }, { status: 400 });
     }
-    if (session.metadata?.type !== "gym" || !session.metadata?.groupId) {
+    if (session.metadata?.type !== "gym") {
       return NextResponse.json({ error: "Not a gym checkout" }, { status: 400 });
     }
 
@@ -35,14 +35,34 @@ export async function POST(req: NextRequest) {
       clean(process.env.SUPABASE_SERVICE_ROLE_KEY ?? "")
     );
 
-    const { error } = await supabase
-      .from("groups")
-      .update({ is_gym: true })
-      .eq("id", session.metadata.groupId);
+    // Upgrade path: existing group → flip is_gym
+    if (session.metadata.groupId) {
+      const { error } = await supabase
+        .from("groups")
+        .update({ is_gym: true })
+        .eq("id", session.metadata.groupId);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ success: true, groupId: session.metadata.groupId });
+    }
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // New-gym path: create the group as a gym + add owner as trainer member
+    if (session.metadata.gymName && session.metadata.userId) {
+      const { data: g, error: gErr } = await supabase
+        .from("groups")
+        .insert({ name: session.metadata.gymName, trainer_id: session.metadata.userId, is_gym: true })
+        .select("id")
+        .single();
+      if (gErr || !g) return NextResponse.json({ error: gErr?.message ?? "create failed" }, { status: 500 });
 
-    return NextResponse.json({ success: true });
+      const { error: mErr } = await supabase
+        .from("group_members")
+        .insert({ group_id: g.id, user_id: session.metadata.userId, role: "trainer" });
+      if (mErr) return NextResponse.json({ error: mErr.message }, { status: 500 });
+
+      return NextResponse.json({ success: true, groupId: g.id });
+    }
+
+    return NextResponse.json({ error: "Not a gym checkout" }, { status: 400 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: msg }, { status: 500 });

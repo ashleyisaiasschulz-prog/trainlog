@@ -8,8 +8,13 @@ function clean(s: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, email, groupId } = await req.json();
-    if (!userId || !groupId) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    // Two modes:
+    //  - upgrade an existing free group → pass groupId
+    //  - create a brand-new gym → pass gymName (group is created after payment)
+    const { userId, email, groupId, gymName } = await req.json();
+    if (!userId || (!groupId && !gymName)) {
+      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    }
 
     const origin = clean(process.env.NEXT_PUBLIC_APP_URL ?? "https://trainlog-three.vercel.app");
     const key    = clean(process.env.STRIPE_SECRET_KEY ?? "");
@@ -23,15 +28,23 @@ export async function POST(req: NextRequest) {
       "line_items[0][price_data][unit_amount]":                "2900",
       "line_items[0][quantity]":                               "1",
       "metadata[type]":                                        "gym",
-      "metadata[groupId]":                                     groupId,
       "metadata[userId]":                                      userId,
       "subscription_data[metadata][type]":                     "gym",
-      "subscription_data[metadata][groupId]":                  groupId,
       "subscription_data[metadata][userId]":                   userId,
       "allow_promotion_codes":                                 "true",
-      "success_url":  `${origin}/groups/${groupId}?session_id={CHECKOUT_SESSION_ID}`,
-      "cancel_url":   `${origin}/groups/${groupId}`,
+      // On return the page calls verify-gym, which activates/creates the gym.
+      "success_url":  `${origin}/groups?gym_session_id={CHECKOUT_SESSION_ID}`,
+      "cancel_url":   `${origin}/groups`,
     });
+
+    if (groupId) {
+      params.set("metadata[groupId]", groupId);
+      params.set("subscription_data[metadata][groupId]", groupId);
+    }
+    if (gymName) {
+      params.set("metadata[gymName]", gymName);
+      params.set("subscription_data[metadata][gymName]", gymName);
+    }
 
     if (email) params.set("customer_email", email);
 
