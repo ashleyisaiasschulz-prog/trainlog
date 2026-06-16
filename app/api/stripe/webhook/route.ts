@@ -39,11 +39,21 @@ export async function POST(req: NextRequest) {
     clean(process.env.SUPABASE_SERVICE_ROLE_KEY ?? "")
   );
 
+  const meta = event.data.object?.metadata ?? {};
+  const isGymSub = meta.type === "gym";
+
   if (event.type === "checkout.session.completed") {
-    const userId = event.data.object?.metadata?.userId;
+    const userId = meta.userId;
     const customerId = event.data.object?.customer ?? null;
-    console.log("Setting premium for userId:", userId);
-    if (userId) {
+    if (isGymSub && meta.groupId) {
+      // Gym subscription → unlock the group
+      const { error } = await supabaseAdmin
+        .from("groups")
+        .update({ is_gym: true })
+        .eq("id", meta.groupId);
+      if (error) console.error("Gym unlock error:", error.message);
+    } else if (userId) {
+      // Personal Pro subscription
       const { error } = await supabaseAdmin
         .from("profiles")
         .update({ is_premium: true, stripe_customer_id: customerId })
@@ -53,12 +63,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (event.type === "customer.subscription.deleted") {
-    const userId = event.data.object?.metadata?.userId;
-    if (userId) {
-      await supabaseAdmin
-        .from("profiles")
-        .update({ is_premium: false })
-        .eq("id", userId);
+    if (isGymSub && meta.groupId) {
+      await supabaseAdmin.from("groups").update({ is_gym: false }).eq("id", meta.groupId);
+    } else if (meta.userId) {
+      await supabaseAdmin.from("profiles").update({ is_premium: false }).eq("id", meta.userId);
     }
   }
 

@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { DAY_NAMES_FULL, BELT_COLORS, Belt } from "@/lib/types";
 import { format } from "date-fns";
@@ -21,7 +21,7 @@ function beltAvatar(belt?: string) {
 interface Group {
   id: string; name: string; description: string | null;
   gym: string | null; trainer_id: string; invite_code: string;
-  max_coaches?: number | null;
+  max_coaches?: number | null; is_gym?: boolean | null;
 }
 interface MiniProfile { username: string; display_name: string | null; belt: string; stripes: number }
 interface Member { user_id: string; role: string; profiles: MiniProfile }
@@ -46,17 +46,18 @@ export default function GroupDetailPage() {
   const [members, setMembers]   = useState<Member[]>([]);
   const [sessions, setSessions] = useState<TrainerSession[]>([]);
   const [rsvps, setRsvps]       = useState<Rsvp[]>([]);
-  const [tab, setTab]           = useState<"sessions" | "members" | "chat" | "insights" | "board">("sessions");
+  const [tab, setTab]           = useState<"sessions" | "members" | "chat" | "insights" | "board">("board");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     title: "", description: "", focus: "", date: format(new Date(), "yyyy-MM-dd"),
     time: "19:00", duration: 90, gi: true, recurring: false, day_of_week: 2,
   });
 
-  const isOwner = group?.trainer_id === user?.id;
+  const isGym   = !!group?.is_gym;
+  const isOwner = group?.trainer_id === user?.id;   // the group admin
   const myRole  = members.find(m => m.user_id === user?.id)?.role;
-  // "Coach" privileges: owner or a member promoted to trainer/coach.
-  const isTrainer = isOwner || myRole === "trainer" || myRole === "coach";
+  // Coaching privileges (schedule, insights) exist only in a paid gym.
+  const canCoach = isGym && (isOwner || myRole === "trainer" || myRole === "coach");
 
   const isCoachRole = (m: Member) => m.role === "trainer" || m.role === "coach" || m.user_id === group?.trainer_id;
   const coaches  = members.filter(isCoachRole);
@@ -67,6 +68,27 @@ export default function GroupDetailPage() {
   const setRole = async (uid: string, role: "coach" | "student") => {
     await sb.from("group_members").update({ role }).eq("group_id", id).eq("user_id", uid);
     await load();
+  };
+
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError]     = useState("");
+
+  const upgradeToGym = async () => {
+    if (!user) return;
+    setBillingLoading(true);
+    setBillingError("");
+    try {
+      const res = await fetch("/api/stripe/gym-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, email: user.email, groupId: id }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else { setBillingError(data.error ?? "Could not start checkout"); setBillingLoading(false); }
+    } catch {
+      setBillingError("Network error"); setBillingLoading(false);
+    }
   };
 
   const load = async () => {
@@ -151,9 +173,29 @@ export default function GroupDetailPage() {
         </div>
       </div>
 
+      {/* Upgrade-to-Gym banner (free group, owner only) */}
+      {isOwner && !isGym && (
+        <button onClick={upgradeToGym} disabled={billingLoading}
+          className="w-full bg-gradient-to-r from-amber-500/15 to-zinc-900 border border-amber-500/30 rounded-2xl p-4 flex items-center gap-3 text-left active:scale-[0.99] transition-all disabled:opacity-60">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+            <Crown size={20} className="text-amber-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-zinc-100">Upgrade to a Gym</p>
+            <p className="text-xs text-zinc-500">Add up to 3 coaches, schedule classes & see gym analytics</p>
+          </div>
+          {billingLoading ? <Loader2 size={16} className="text-amber-400 animate-spin" /> : <span className="text-xs font-bold text-amber-400 shrink-0">€29/mo</span>}
+        </button>
+      )}
+      {billingError && <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{billingError}</p>}
+
       {/* Tabs */}
       <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 overflow-x-auto no-scrollbar">
-        {([["sessions","Plan",Calendar],["chat","Chat",MessageCircle],["board","Board",Trophy],["members","Members",Users],["insights","Stats",BarChart2]] as const).map(([k,label,Icon]) => (
+        {([
+          ...(isGym ? [["sessions","Plan",Calendar]] as const : []),
+          ["chat","Chat",MessageCircle],["board","Board",Trophy],["members","Members",Users],
+          ...(isGym ? [["insights","Stats",BarChart2]] as const : []),
+        ] as const).map(([k,label,Icon]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`shrink-0 flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
               tab === k ? "bg-zinc-700 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
@@ -164,16 +206,16 @@ export default function GroupDetailPage() {
       </div>
 
       {/* ── SESSIONS TAB ── */}
-      {tab === "sessions" && (
+      {tab === "sessions" && isGym && (
         <div className="space-y-4">
-          {isTrainer && (
+          {canCoach && (
             <button onClick={() => setShowForm(v => !v)}
               className="w-full bg-red-600 hover:bg-red-500 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors">
               <Plus size={15}/> Schedule a Session
             </button>
           )}
 
-          {showForm && isTrainer && (
+          {showForm && canCoach && (
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
               <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))}
                 placeholder="Session title (e.g. Guard Passing)"
@@ -273,7 +315,7 @@ export default function GroupDetailPage() {
                           )}
                         </div>
                       </div>
-                      {isTrainer && (
+                      {canCoach && (
                         <button onClick={()=>deleteSession(s.id)} className="text-zinc-700 hover:text-red-500 p-1">
                           <Trash2 size={14}/>
                         </button>
@@ -281,7 +323,7 @@ export default function GroupDetailPage() {
                     </div>
 
                     {/* RSVP buttons */}
-                    {!isTrainer && (
+                    {!canCoach && (
                       <div className="flex gap-2 mt-3 pt-3 border-t border-zinc-800">
                         <button onClick={()=>toggleRsvp(s.id, true)}
                           className={`flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
@@ -308,11 +350,11 @@ export default function GroupDetailPage() {
       {/* ── MEMBERS TAB ── */}
       {tab === "members" && (
         <div className="space-y-4">
-          {/* Coaches */}
+          {/* Admin (free) / Coaches (gym) */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Coaches</p>
-              <span className="text-[11px] text-zinc-600">{coaches.length}/{maxCoaches} seats</span>
+              <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">{isGym ? "Coaches" : "Admin"}</p>
+              {isGym && <span className="text-[11px] text-zinc-600">{coaches.length}/{maxCoaches} seats</span>}
             </div>
             <div className="flex flex-col gap-2">
               {coaches.map(m => {
@@ -327,10 +369,10 @@ export default function GroupDetailPage() {
                       <p className="text-xs text-zinc-500 capitalize">{m.profiles?.belt} belt · {m.profiles?.stripes} stripes</p>
                     </div>
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md">
-                      <Crown size={10}/> {owner ? "Owner" : "Coach"}
+                      <Crown size={10}/> {!isGym ? "Admin" : owner ? "Owner" : "Coach"}
                     </span>
-                    {/* Owner can remove a non-owner coach */}
-                    {isOwner && !owner && (
+                    {/* Owner can remove a non-owner coach (gym only) */}
+                    {isGym && isOwner && !owner && (
                       <button onClick={() => setRole(m.user_id, "student")}
                         className="text-[10px] font-semibold text-zinc-500 hover:text-red-400 transition-colors shrink-0">
                         Remove
@@ -340,7 +382,7 @@ export default function GroupDetailPage() {
                 );
               })}
             </div>
-            {isOwner && !canAddCoach && (
+            {isGym && isOwner && !canAddCoach && (
               <p className="text-[11px] text-zinc-600 mt-2">All {maxCoaches} coach seats used. Remove a coach to add another.</p>
             )}
           </div>
@@ -360,8 +402,8 @@ export default function GroupDetailPage() {
                     <p className="text-sm font-semibold text-zinc-100">@{m.profiles?.username}</p>
                     <p className="text-xs text-zinc-500 capitalize">{m.profiles?.belt} belt · {m.profiles?.stripes} stripes</p>
                   </div>
-                  {/* Owner can promote a student to coach (if seats left) */}
-                  {isOwner && (
+                  {/* Owner can promote a student to coach (gym only, if seats left) */}
+                  {isGym && isOwner && (
                     <button onClick={() => setRole(m.user_id, "coach")} disabled={!canAddCoach}
                       className="text-[10px] font-semibold text-amber-400 hover:text-amber-300 disabled:text-zinc-700 disabled:cursor-not-allowed transition-colors shrink-0">
                       Make coach
@@ -390,8 +432,8 @@ export default function GroupDetailPage() {
       )}
 
       {/* ── INSIGHTS TAB ── */}
-      {tab === "insights" && (
-        <GroupInsights groupId={id as string} isTrainer={isTrainer} memberCount={members.length} />
+      {tab === "insights" && isGym && (
+        <GroupInsights groupId={id as string} isTrainer={canCoach} memberCount={members.length} />
       )}
     </div>
   );
