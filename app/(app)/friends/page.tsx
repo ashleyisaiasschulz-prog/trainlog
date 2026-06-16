@@ -98,7 +98,31 @@ export default function FriendsPage() {
     setPending(pendingMapped);
   };
 
-  useEffect(() => { loadFriends(); }, [user]);
+  useEffect(() => {
+    if (!user) return;
+    loadFriends();
+
+    // Live updates: when either side accepts/sends/removes a friendship,
+    // refresh the list without a manual reload.
+    const channel = sb
+      .channel("friendships-rt")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "friendships" },
+        () => loadFriends()
+      )
+      .subscribe();
+
+    // Fallback for when realtime isn't available: refresh on tab focus.
+    const onVisible = () => { if (document.visibilityState === "visible") loadFriends(); };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      sb.removeChannel(channel);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const handleSearch = async () => {
     if (!search.trim() || !user) return;
