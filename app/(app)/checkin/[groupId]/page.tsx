@@ -43,7 +43,6 @@ export default function CheckinPage() {
       const { data: s } = await sb.from("trainer_sessions")
         .select("id,title,time,duration,gi,recurring,day_of_week,date")
         .eq("group_id", groupId).eq("active", true);
-      // Only today's classes (recurring on this weekday, or a one-off dated today)
       const todays = (s ?? []).filter((x: Sess) =>
         x.recurring ? x.day_of_week === todayDow : x.date === today
       );
@@ -52,7 +51,22 @@ export default function CheckinPage() {
       // Already checked in today?
       const { data: att } = await sb.from("attendance")
         .select("trainer_session_id").eq("group_id", groupId).eq("user_id", user.id).eq("date", today);
-      if (att && att.length > 0) setDone(att[0].trainer_session_id);
+      if (att && att.length > 0) { setDone(att[0].trainer_session_id); setLoading(false); return; }
+
+      // Auto check-in: find RSVP'd session and check in automatically
+      const { data: rsvps } = await sb.from("session_rsvps")
+        .select("trainer_session_id")
+        .eq("user_id", user.id).eq("status", "going")
+        .in("trainer_session_id", todays.map(t => t.id));
+      if (rsvps && rsvps.length > 0) {
+        const sid = rsvps[0].trainer_session_id;
+        const { error: insErr } = await sb.from("attendance").insert({
+          group_id: groupId, trainer_session_id: sid, user_id: user.id, date: today,
+        });
+        if (!insErr || insErr.message.includes("duplicate")) {
+          setDone(sid); setLoading(false); return;
+        }
+      }
 
       setLoading(false);
     })();

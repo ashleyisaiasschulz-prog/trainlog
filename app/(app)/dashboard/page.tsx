@@ -6,7 +6,7 @@ import BeltBadge from "@/components/BeltBadge";
 import ScheduleWidget from "@/components/ScheduleWidget";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, ChevronRight, Timer, BookOpen, HeartPulse, CalendarDays, Trophy } from "lucide-react";
+import { Plus, ChevronRight, Timer, BookOpen, HeartPulse, CalendarDays, Trophy, QrCode } from "lucide-react";
 import { BELT_ORDER, BELT_LABELS } from "@/lib/types";
 import { differenceInYears, differenceInDays, format, subDays } from "date-fns";
 import { useState } from "react";
@@ -81,6 +81,10 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/scan"
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 active:scale-95 transition-all">
+            <QrCode size={18} />
+          </Link>
           <Link href="/calendar"
             className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 active:scale-95 transition-all">
             <CalendarDays size={18} />

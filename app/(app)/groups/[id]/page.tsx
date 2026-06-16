@@ -85,6 +85,18 @@ function GroupDetailInner() {
     await load();
   };
 
+  const kickMember = async (uid: string) => {
+    if (!confirm("Remove this member from the group?")) return;
+    await sb.from("group_members").delete().eq("group_id", id).eq("user_id", uid);
+    await load();
+  };
+
+  const deleteGroup = async () => {
+    if (!confirm("Delete this group permanently? This cannot be undone.")) return;
+    await sb.from("groups").delete().eq("id", id);
+    router.push("/groups");
+  };
+
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError]     = useState("");
 
@@ -143,6 +155,17 @@ function GroupDetailInner() {
   };
 
   useEffect(() => { load(); }, [user, id]);
+
+  // Realtime: refresh RSVPs + attendance when they change
+  useEffect(() => {
+    const channel = sb
+      .channel(`group-rsvps-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "session_rsvps" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "attendance", filter: `group_id=eq.${id}` }, () => load())
+      .subscribe();
+    return () => { sb.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   // After a gym checkout, confirm payment and unlock the group.
   useEffect(() => {
@@ -263,7 +286,7 @@ function GroupDetailInner() {
           ...(canCoach ? [["insights","Stats",BarChart2]] as const : []),
         ] as const).map(([k,label,Icon]) => (
           <button key={k} onClick={() => setTab(k)}
-            className={`shrink-0 flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
               tab === k ? "bg-zinc-700 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
             }`}>
             <Icon size={13}/> {label}
@@ -389,7 +412,16 @@ function GroupDetailInner() {
                         {/* Attendance today (coach view): who actually came + no-shows */}
                         {canCoach && (() => {
                           const came = attendedToday(s.id);
-                          const noShow = goingUsers(s.id).filter(uid => !came.includes(uid));
+                          // Only show no-shows after the session's scheduled end time
+                          const sessionOver = (() => {
+                            if (!s.time) return false;
+                            const [h, m] = s.time.split(":").map(Number);
+                            const endMin = h * 60 + m + (s.duration ?? 60);
+                            const now = new Date();
+                            const nowMin = now.getHours() * 60 + now.getMinutes();
+                            return nowMin >= endMin;
+                          })();
+                          const noShow = sessionOver ? goingUsers(s.id).filter(uid => !came.includes(uid)) : [];
                           if (came.length === 0 && noShow.length === 0) return null;
                           return (
                             <div className="mt-2 space-y-1.5">
@@ -523,6 +555,12 @@ function GroupDetailInner() {
                         Make coach
                       </button>
                     )}
+                    {isOwner && (
+                      <button onClick={() => kickMember(m.user_id)}
+                        className="text-zinc-700 hover:text-red-500 transition-colors p-1 shrink-0">
+                        <X size={14}/>
+                      </button>
+                    )}
                   </div>
 
                   {/* Coach note editor */}
@@ -564,6 +602,14 @@ function GroupDetailInner() {
               )}
             </div>
           </div>
+
+          {/* Delete group (owner only) */}
+          {isOwner && (
+            <button onClick={deleteGroup}
+              className="w-full mt-4 py-3 rounded-xl border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/10 transition-colors">
+              Delete Group
+            </button>
+          )}
         </div>
       )}
 

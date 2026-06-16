@@ -22,6 +22,8 @@ export default function GroupsPage() {
   const [error, setError]         = useState("");
   const sb = createClient();
 
+  const isGroupOwner = myGroups.some(g => g.trainer_id === user?.id);
+
   const loadGroups = async () => {
     if (!user) return;
     const { data } = await sb
@@ -81,10 +83,12 @@ export default function GroupsPage() {
             className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold px-3 py-2 rounded-xl text-sm transition-colors flex items-center gap-1.5">
             <Hash size={14}/> Join
           </button>
-          <button onClick={() => { setShowCreate(v=>!v); setShowJoin(false); }}
-            className="bg-red-600 hover:bg-red-500 text-white font-semibold px-3 py-2 rounded-xl text-sm transition-colors flex items-center gap-1.5">
-            <Plus size={14}/> Create
-          </button>
+          {(isGroupOwner || myGroups.length === 0) && (
+            <button onClick={() => { setShowCreate(v=>!v); setShowJoin(false); }}
+              className="bg-red-600 hover:bg-red-500 text-white font-semibold px-3 py-2 rounded-xl text-sm transition-colors flex items-center gap-1.5">
+              <Plus size={14}/> Create
+            </button>
+          )}
         </div>
       </div>
 
@@ -152,7 +156,7 @@ export default function GroupsPage() {
                   </p>
                 </div>
                 {g.trainer_id === user.id && (
-                  <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md">Trainer</span>
+                  <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md">Admin</span>
                 )}
                 <ChevronRight size={15} className="text-zinc-700 shrink-0"/>
               </div>
