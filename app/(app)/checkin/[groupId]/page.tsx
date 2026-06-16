@@ -7,7 +7,6 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Check, Loader2, CalendarX, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
-import { DAY_NAMES_FULL } from "@/lib/types";
 
 interface Sess {
   id: string; title: string; time: string | null; duration: number | null;
@@ -22,9 +21,10 @@ export default function CheckinPage() {
   const [groupName, setGroupName] = useState("");
   const [isMember, setIsMember]   = useState(false);
   const [sessions, setSessions]   = useState<Sess[]>([]);
-  const [done, setDone]           = useState<string | null>(null);
+  const [checkedIn, setCheckedIn] = useState<Set<string>>(new Set());
+  const [rsvpd, setRsvpd]         = useState<Set<string>>(new Set());
   const [loading, setLoading]     = useState(true);
-  const [checking, setChecking]   = useState<string | null>(null);
+  const [busy, setBusy]           = useState<string | null>(null);
   const [error, setError]         = useState("");
 
   const today    = format(new Date(), "yyyy-MM-dd");
@@ -48,43 +48,44 @@ export default function CheckinPage() {
       );
       setSessions(todays);
 
-      // Already checked in today?
+      // What did I already check into today?
       const { data: att } = await sb.from("attendance")
         .select("trainer_session_id").eq("group_id", groupId).eq("user_id", user.id).eq("date", today);
-      if (att && att.length > 0) { setDone(att[0].trainer_session_id); setLoading(false); return; }
+      setCheckedIn(new Set((att ?? []).map((a: any) => a.trainer_session_id)));
 
-      // Auto check-in: find RSVP'd session and check in automatically
-      const { data: rsvps } = await sb.from("session_rsvps")
+      // Which of today's sessions did I RSVP "going" to? (just to highlight)
+      const { data: rs } = await sb.from("session_rsvps")
         .select("trainer_session_id")
         .eq("user_id", user.id).eq("status", "going")
         .in("trainer_session_id", todays.map(t => t.id));
-      if (rsvps && rsvps.length > 0) {
-        const sid = rsvps[0].trainer_session_id;
-        const { error: insErr } = await sb.from("attendance").insert({
-          group_id: groupId, trainer_session_id: sid, user_id: user.id, date: today,
-        });
-        if (!insErr || insErr.message.includes("duplicate")) {
-          setDone(sid); setLoading(false); return;
-        }
-      }
+      setRsvpd(new Set((rs ?? []).map((r: any) => r.trainer_session_id)));
 
       setLoading(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, groupId]);
 
-  const checkIn = async (sessionId: string) => {
-    if (!user) return;
-    setChecking(sessionId);
+  const toggle = async (sessionId: string) => {
+    if (!user || busy) return;
+    setBusy(sessionId);
     setError("");
-    const { error } = await sb.from("attendance").insert({
-      group_id: groupId, trainer_session_id: sessionId, user_id: user.id, date: today,
-    });
-    if (error && !error.message.includes("duplicate")) {
-      setError(error.message); setChecking(null); return;
+    const already = checkedIn.has(sessionId);
+
+    if (already) {
+      // Un-check (mis-tap)
+      const { error } = await sb.from("attendance")
+        .delete()
+        .eq("trainer_session_id", sessionId).eq("user_id", user.id).eq("date", today);
+      if (error) { setError(error.message); setBusy(null); return; }
+      setCheckedIn(prev => { const n = new Set(prev); n.delete(sessionId); return n; });
+    } else {
+      const { error } = await sb.from("attendance").insert({
+        group_id: groupId, trainer_session_id: sessionId, user_id: user.id, date: today,
+      });
+      if (error && !error.message.includes("duplicate")) { setError(error.message); setBusy(null); return; }
+      setCheckedIn(prev => new Set(prev).add(sessionId));
     }
-    setDone(sessionId);
-    setChecking(null);
+    setBusy(null);
   };
 
   if (!user) {
@@ -103,21 +104,8 @@ export default function CheckinPage() {
         <p className="text-base font-semibold text-zinc-200">Join {groupName || "this gym"} first</p>
         <p className="text-sm text-zinc-500 text-center">Ask your coach for the invite code, then check in.</p>
         <Link href="/groups" className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold px-5 py-2.5 rounded-xl text-sm">
-          Go to Groups <ArrowRight size={15} />
+          Go to Gym <ArrowRight size={15} />
         </Link>
-      </Wrap>
-    );
-  }
-
-  if (done) {
-    return (
-      <Wrap>
-        <div className="w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center">
-          <Check size={32} className="text-emerald-400" strokeWidth={2.5} />
-        </div>
-        <p className="text-lg font-bold text-zinc-100">You're checked in! 🥋</p>
-        <p className="text-sm text-zinc-500">{groupName} · {format(new Date(), "EEEE, MMM d")}</p>
-        <Link href="/dashboard" className="mt-2 text-xs text-zinc-500 hover:text-zinc-300 underline">Go to app</Link>
       </Wrap>
     );
   }
@@ -132,23 +120,49 @@ export default function CheckinPage() {
     );
   }
 
+  const anyChecked = checkedIn.size > 0;
+
   return (
     <Wrap>
       <p className="text-base font-bold text-zinc-100">{groupName}</p>
-      <p className="text-sm text-zinc-500">Tap your class to check in</p>
+      <p className="text-sm text-zinc-500">
+        {anyChecked ? "You're checked in 🥋 — tap to change" : "Which class are you here for?"}
+      </p>
       {error && <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{error}</p>}
       <div className="w-full max-w-sm space-y-2 mt-2">
-        {sessions.map(s => (
-          <button key={s.id} onClick={() => checkIn(s.id)} disabled={!!checking}
-            className="w-full bg-zinc-900 border border-zinc-800 hover:border-red-500/40 rounded-2xl px-4 py-4 flex items-center gap-3 active:scale-[0.99] transition-all disabled:opacity-60">
-            <div className="flex-1 text-left">
-              <p className="text-sm font-semibold text-zinc-100">{s.title}</p>
-              <p className="text-xs text-zinc-500">{s.time?.slice(0,5)} · {s.duration}min · {s.gi ? "Gi" : "No-Gi"}</p>
-            </div>
-            {checking === s.id ? <Loader2 size={18} className="animate-spin text-red-400" /> : <Check size={18} className="text-zinc-600" />}
-          </button>
-        ))}
+        {sessions.map(s => {
+          const on = checkedIn.has(s.id);
+          const mineRsvp = rsvpd.has(s.id);
+          return (
+            <button key={s.id} onClick={() => toggle(s.id)} disabled={!!busy}
+              className={`w-full rounded-2xl px-4 py-4 flex items-center gap-3 active:scale-[0.99] transition-all disabled:opacity-60 border ${
+                on ? "bg-emerald-500/10 border-emerald-500/40" : "bg-zinc-900 border-zinc-800 hover:border-red-500/40"
+              }`}>
+              <div className="flex-1 text-left">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold text-zinc-100">{s.title}</p>
+                  {mineRsvp && (
+                    <span className="text-[10px] font-semibold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-md">signed up</span>
+                  )}
+                </div>
+                <p className="text-xs text-zinc-500">{s.time?.slice(0,5)} · {s.duration}min · {s.gi ? "Gi" : "No-Gi"}</p>
+              </div>
+              {busy === s.id ? (
+                <Loader2 size={18} className="animate-spin text-red-400" />
+              ) : (
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center border ${
+                  on ? "bg-emerald-500 border-emerald-500" : "border-zinc-600"
+                }`}>
+                  {on && <Check size={14} className="text-white" strokeWidth={3} />}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
+      {anyChecked && (
+        <Link href="/dashboard" className="mt-3 text-xs text-zinc-500 hover:text-zinc-300 underline">Done · go to app</Link>
+      )}
     </Wrap>
   );
 }
