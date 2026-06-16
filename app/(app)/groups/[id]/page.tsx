@@ -244,7 +244,7 @@ function GroupDetailInner() {
     <div className="px-4 pt-5 pb-28 space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link href="/groups" className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 transition-colors">
+        <Link href={isGym ? "/groups?list=1" : "/friends"} className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 transition-colors">
           <ArrowLeft size={18}/>
         </Link>
         <div className="flex-1 min-w-0">

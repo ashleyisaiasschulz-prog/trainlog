@@ -45,13 +45,22 @@ export async function POST(req: NextRequest) {
   if (event.type === "checkout.session.completed") {
     const userId = meta.userId;
     const customerId = event.data.object?.customer ?? null;
-    if (isGymSub && meta.groupId) {
-      // Gym subscription → unlock the group
-      const { error } = await supabaseAdmin
-        .from("groups")
-        .update({ is_gym: true })
-        .eq("id", meta.groupId);
-      if (error) console.error("Gym unlock error:", error.message);
+    if (isGymSub) {
+      // Gym subscription → unlock the group (if it already exists; the new-gym
+      // group is created in verify-gym on return) and grant the owner Pro.
+      if (meta.groupId) {
+        const { error } = await supabaseAdmin
+          .from("groups")
+          .update({ is_gym: true })
+          .eq("id", meta.groupId);
+        if (error) console.error("Gym unlock error:", error.message);
+      }
+      if (userId) {
+        await supabaseAdmin
+          .from("profiles")
+          .update({ is_premium: true, stripe_customer_id: customerId })
+          .eq("id", userId);
+      }
     } else if (userId) {
       // Personal Pro subscription
       const { error } = await supabaseAdmin

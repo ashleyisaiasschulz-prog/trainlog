@@ -35,6 +35,13 @@ export async function POST(req: NextRequest) {
       clean(process.env.SUPABASE_SERVICE_ROLE_KEY ?? "")
     );
 
+    const ownerId = session.metadata.userId;
+    // Gym owners get Pro included for as long as the gym subscription runs.
+    const grantPro = async () => {
+      if (!ownerId) return;
+      await supabase.from("profiles").update({ is_premium: true }).eq("id", ownerId);
+    };
+
     // Upgrade path: existing group → flip is_gym
     if (session.metadata.groupId) {
       const { error } = await supabase
@@ -42,23 +49,25 @@ export async function POST(req: NextRequest) {
         .update({ is_gym: true })
         .eq("id", session.metadata.groupId);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      await grantPro();
       return NextResponse.json({ success: true, groupId: session.metadata.groupId });
     }
 
     // New-gym path: create the group as a gym + add owner as trainer member
-    if (session.metadata.gymName && session.metadata.userId) {
+    if (session.metadata.gymName && ownerId) {
       const { data: g, error: gErr } = await supabase
         .from("groups")
-        .insert({ name: session.metadata.gymName, trainer_id: session.metadata.userId, is_gym: true })
+        .insert({ name: session.metadata.gymName, trainer_id: ownerId, is_gym: true })
         .select("id")
         .single();
       if (gErr || !g) return NextResponse.json({ error: gErr?.message ?? "create failed" }, { status: 500 });
 
       const { error: mErr } = await supabase
         .from("group_members")
-        .insert({ group_id: g.id, user_id: session.metadata.userId, role: "trainer" });
+        .insert({ group_id: g.id, user_id: ownerId, role: "trainer" });
       if (mErr) return NextResponse.json({ error: mErr.message }, { status: 500 });
 
+      await grantPro();
       return NextResponse.json({ success: true, groupId: g.id });
     }
 

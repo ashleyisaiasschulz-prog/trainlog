@@ -48,6 +48,15 @@ function GymsInner() {
     if (searchParams.get("create") === "gym") setShowCreate(true);
   }, [searchParams]);
 
+  // With exactly one gym, the tab IS that gym → open it directly.
+  // ?list=1 (e.g. from the gym's back button) keeps the list visible.
+  useEffect(() => {
+    if (searchParams.get("list")) return;
+    if (searchParams.get("gym_session_id") || searchParams.get("create")) return;
+    if (gyms.length === 1) router.replace(`/groups/${gyms[0].id}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gyms]);
+
   // After gym checkout: confirm payment, create/activate the gym, then open it.
   useEffect(() => {
     const sid = searchParams.get("gym_session_id");
