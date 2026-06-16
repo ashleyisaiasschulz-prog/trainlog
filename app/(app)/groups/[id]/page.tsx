@@ -158,6 +158,14 @@ function GroupDetailInner() {
 
   useEffect(() => { load(); }, [user, id]);
 
+  // Default to the Plan tab in a gym (Board for social groups). Runs once.
+  const tabInitRef = useRef(false);
+  useEffect(() => {
+    if (!group || tabInitRef.current) return;
+    tabInitRef.current = true;
+    if (group.is_gym) setTab("sessions");
+  }, [group]);
+
   // Realtime: refresh RSVPs + attendance when they change
   useEffect(() => {
     const channel = sb

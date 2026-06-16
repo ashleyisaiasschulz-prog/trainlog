@@ -65,6 +65,17 @@ export default function CheckinPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, groupId]);
 
+  // A class can be checked into until 1 hour after it ends. After that the
+  // window is closed (keeps attendance honest).
+  const GRACE_MIN = 60;
+  const isClosed = (s: Sess) => {
+    if (!s.time) return false;
+    const [h, m] = s.time.split(":").map(Number);
+    const end = new Date(today + "T00:00:00");
+    end.setHours(h, m + (s.duration ?? 60) + GRACE_MIN, 0, 0);
+    return new Date() > end;
+  };
+
   const toggle = async (sessionId: string) => {
     if (!user || busy) return;
     setBusy(sessionId);
@@ -133,8 +144,9 @@ export default function CheckinPage() {
         {sessions.map(s => {
           const on = checkedIn.has(s.id);
           const mineRsvp = rsvpd.has(s.id);
+          const closed = isClosed(s) && !on;   // checked-in stays visible/locked
           return (
-            <button key={s.id} onClick={() => toggle(s.id)} disabled={!!busy}
+            <button key={s.id} onClick={() => toggle(s.id)} disabled={!!busy || closed}
               className={`w-full rounded-2xl px-4 py-4 flex items-center gap-3 active:scale-[0.99] transition-all disabled:opacity-60 border ${
                 on ? "bg-emerald-500/10 border-emerald-500/40" : "bg-zinc-900 border-zinc-800 hover:border-red-500/40"
               }`}>
@@ -143,6 +155,9 @@ export default function CheckinPage() {
                   <p className="text-sm font-semibold text-zinc-100">{s.title}</p>
                   {mineRsvp && (
                     <span className="text-[10px] font-semibold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-md">signed up</span>
+                  )}
+                  {closed && (
+                    <span className="text-[10px] font-semibold text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded-md">closed</span>
                   )}
                 </div>
                 <p className="text-xs text-zinc-500">{s.time?.slice(0,5)} · {s.duration}min · {s.gi ? "Gi" : "No-Gi"}</p>
