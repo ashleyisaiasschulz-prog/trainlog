@@ -238,11 +238,6 @@ export default function FriendStatsPage() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-lg font-bold text-zinc-100">{profile.display_name || profile.username}</p>
-            {profile.is_trainer ? (
-              <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md">👨‍🏫 Coach</span>
-            ) : (
-              <span className="text-[10px] font-bold text-zinc-400 bg-zinc-700/50 px-2 py-0.5 rounded-md">Student</span>
-            )}
           </div>
           {profile.gym && <p className="text-xs text-zinc-500">{profile.gym}</p>}
           {profile.share_belt && (

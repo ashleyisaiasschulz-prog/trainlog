@@ -15,17 +15,16 @@ async function ensureProfile(sb: ReturnType<typeof createClient>, user: User) {
     const { data } = await sb.from("profiles").select("*").eq("id", user.id).maybeSingle();
     if (data) return data;
 
-    // Prefer username/role chosen at signup (stored in user metadata)
+    // Prefer username chosen at signup (stored in user metadata)
     const meta = user.user_metadata ?? {};
     const base = ((meta.username as string) || user.email?.split("@")[0] || "user")
       .toLowerCase().replace(/[^a-z0-9_]/g, "") || "user";
     const displayName = (meta.display_name as string) || base;
-    const isTrainer = Boolean(meta.is_trainer);
 
     let username = base;
     for (let i = 0; i < 6; i++) {
       const { error } = await sb.from("profiles").insert({
-        id: user.id, username, display_name: displayName, is_trainer: isTrainer,
+        id: user.id, username, display_name: displayName,
       });
       if (!error) break;
       if (error.code === "23505") username = base + (i + 1);  // username clash → suffix

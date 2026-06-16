@@ -32,14 +32,6 @@ export default function AccountPage() {
     setSaving(false);
   };
 
-  const toggleRole = async () => {
-    if (!user || !profile) return;
-    setSaving(true);
-    await sb.from("profiles").update({ is_trainer: !profile.is_trainer }).eq("id", user.id);
-    await refreshProfile();
-    setSaving(false);
-  };
-
   const startEditProfile = () => {
     setEditName(profile?.display_name || "");
     setEditGym(profile?.gym || "");
@@ -142,9 +134,6 @@ export default function AccountPage() {
               <p className="text-base font-bold text-zinc-100">{profile?.display_name || profile?.username}</p>
               <p className="text-xs text-zinc-500">@{profile?.username}</p>
               {profile?.gym && <p className="text-xs text-zinc-500 mt-0.5">{profile.gym}</p>}
-              {profile?.is_trainer && (
-                <span className="inline-block mt-1 text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md">👨‍🏫 Trainer</span>
-              )}
             </div>
             <button onClick={startEditProfile}
               className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors shrink-0">
@@ -152,23 +141,6 @@ export default function AccountPage() {
             </button>
           </div>
         )}
-      </div>
-
-      {/* Role */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Role</p>
-        <button onClick={toggleRole} disabled={saving} className="w-full flex items-center gap-3 text-left">
-          <span className="text-xl">{profile?.is_trainer ? "👨‍🏫" : "🥋"}</span>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-zinc-200">
-              {profile?.is_trainer ? "Coach / Trainer" : "Student"}
-            </p>
-            <p className="text-xs text-zinc-600">Tap to switch how others see you</p>
-          </div>
-          <div className={`w-11 h-6 rounded-full transition-colors shrink-0 ${profile?.is_trainer ? "bg-amber-500" : "bg-zinc-700"}`}>
-            <div className={`w-5 h-5 rounded-full bg-white mt-0.5 transition-transform ${profile?.is_trainer ? "translate-x-5" : "translate-x-0.5"}`}/>
-          </div>
-        </button>
       </div>
 
       {/* Privacy */}

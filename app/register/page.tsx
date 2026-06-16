@@ -9,7 +9,7 @@ import { UserPlus, Mail, ChevronRight, Swords, TrendingUp, Zap } from "lucide-re
 export default function RegisterPage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [form, setForm] = useState({
-    email: "", password: "", username: "", displayName: "", isTrainer: false,
+    email: "", password: "", username: "", displayName: "",
   });
   const [error, setError]         = useState("");
   const [loading, setLoading]     = useState(false);
@@ -47,7 +47,7 @@ export default function RegisterPage() {
       password: form.password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
-        data: { username, display_name: form.displayName || username, is_trainer: form.isTrainer },
+        data: { username, display_name: form.displayName || username },
       },
     });
 
@@ -145,22 +145,6 @@ export default function RegisterPage() {
                 placeholder="Min. 6 characters" required minLength={6}
                 className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600" />
             </div>
-
-            <button type="button" onClick={() => setF("isTrainer", !form.isTrainer)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
-                form.isTrainer ? "bg-amber-500/10 border-amber-500/30" : "bg-zinc-800/60 border-zinc-800"
-              }`}>
-              <span className="text-lg">{form.isTrainer ? "👨‍🏫" : "🥋"}</span>
-              <div className="text-left">
-                <p className={`text-sm font-semibold ${form.isTrainer ? "text-amber-400" : "text-zinc-300"}`}>
-                  {form.isTrainer ? "I'm a Trainer / Coach" : "I'm a Student"}
-                </p>
-                <p className="text-xs text-zinc-600">Tap to switch role</p>
-              </div>
-              <div className={`ml-auto w-10 h-5 rounded-full transition-colors ${form.isTrainer ? "bg-amber-500" : "bg-zinc-700"}`}>
-                <div className={`w-4 h-4 rounded-full bg-white mt-0.5 transition-transform ${form.isTrainer ? "translate-x-5" : "translate-x-0.5"}`} />
-              </div>
-            </button>
 
             {error && <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{error}</p>}
 

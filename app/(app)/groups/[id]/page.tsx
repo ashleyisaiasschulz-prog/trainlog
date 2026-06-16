@@ -21,6 +21,7 @@ function beltAvatar(belt?: string) {
 interface Group {
   id: string; name: string; description: string | null;
   gym: string | null; trainer_id: string; invite_code: string;
+  max_coaches?: number | null;
 }
 interface MiniProfile { username: string; display_name: string | null; belt: string; stripes: number }
 interface Member { user_id: string; role: string; profiles: MiniProfile }
@@ -52,7 +53,21 @@ export default function GroupDetailPage() {
     time: "19:00", duration: 90, gi: true, recurring: false, day_of_week: 2,
   });
 
-  const isTrainer = group?.trainer_id === user?.id;
+  const isOwner = group?.trainer_id === user?.id;
+  const myRole  = members.find(m => m.user_id === user?.id)?.role;
+  // "Coach" privileges: owner or a member promoted to trainer/coach.
+  const isTrainer = isOwner || myRole === "trainer" || myRole === "coach";
+
+  const isCoachRole = (m: Member) => m.role === "trainer" || m.role === "coach" || m.user_id === group?.trainer_id;
+  const coaches  = members.filter(isCoachRole);
+  const students = members.filter(m => !isCoachRole(m));
+  const maxCoaches = group?.max_coaches ?? 3;
+  const canAddCoach = coaches.length < maxCoaches;
+
+  const setRole = async (uid: string, role: "coach" | "student") => {
+    await sb.from("group_members").update({ role }).eq("group_id", id).eq("user_id", uid);
+    await load();
+  };
 
   const load = async () => {
     if (!user) return;
@@ -293,32 +308,50 @@ export default function GroupDetailPage() {
       {/* ── MEMBERS TAB ── */}
       {tab === "members" && (
         <div className="space-y-4">
-          {/* Admin / coach */}
-          {members.filter(m => m.role === "trainer").map(m => (
-            <div key={m.user_id}>
-              <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-2">Group Admin</p>
-              <div className="bg-zinc-900 border border-amber-500/20 rounded-2xl px-4 py-3 flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
-                  {(m.profiles?.display_name || m.profiles?.username || "?")[0].toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-zinc-100">@{m.profiles?.username}</p>
-                  <p className="text-xs text-zinc-500 capitalize">{m.profiles?.belt} belt · {m.profiles?.stripes} stripes</p>
-                </div>
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md">
-                  <Crown size={10}/> Coach
-                </span>
-              </div>
+          {/* Coaches */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Coaches</p>
+              <span className="text-[11px] text-zinc-600">{coaches.length}/{maxCoaches} seats</span>
             </div>
-          ))}
+            <div className="flex flex-col gap-2">
+              {coaches.map(m => {
+                const owner = m.user_id === group.trainer_id;
+                return (
+                  <div key={m.user_id} className="bg-zinc-900 border border-amber-500/20 rounded-2xl px-4 py-3 flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
+                      {(m.profiles?.display_name || m.profiles?.username || "?")[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-zinc-100">@{m.profiles?.username}</p>
+                      <p className="text-xs text-zinc-500 capitalize">{m.profiles?.belt} belt · {m.profiles?.stripes} stripes</p>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md">
+                      <Crown size={10}/> {owner ? "Owner" : "Coach"}
+                    </span>
+                    {/* Owner can remove a non-owner coach */}
+                    {isOwner && !owner && (
+                      <button onClick={() => setRole(m.user_id, "student")}
+                        className="text-[10px] font-semibold text-zinc-500 hover:text-red-400 transition-colors shrink-0">
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {isOwner && !canAddCoach && (
+              <p className="text-[11px] text-zinc-600 mt-2">All {maxCoaches} coach seats used. Remove a coach to add another.</p>
+            )}
+          </div>
 
           {/* Students */}
           <div>
             <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-2">
-              Members <span className="text-zinc-600 ml-1">{members.filter(m => m.role !== "trainer").length}</span>
+              Members <span className="text-zinc-600 ml-1">{students.length}</span>
             </p>
             <div className="flex flex-col gap-2">
-              {members.filter(m => m.role !== "trainer").map(m => (
+              {students.map(m => (
                 <div key={m.user_id} className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 flex items-center gap-3">
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
                     {(m.profiles?.display_name || m.profiles?.username || "?")[0].toUpperCase()}
@@ -327,11 +360,18 @@ export default function GroupDetailPage() {
                     <p className="text-sm font-semibold text-zinc-100">@{m.profiles?.username}</p>
                     <p className="text-xs text-zinc-500 capitalize">{m.profiles?.belt} belt · {m.profiles?.stripes} stripes</p>
                   </div>
+                  {/* Owner can promote a student to coach (if seats left) */}
+                  {isOwner && (
+                    <button onClick={() => setRole(m.user_id, "coach")} disabled={!canAddCoach}
+                      className="text-[10px] font-semibold text-amber-400 hover:text-amber-300 disabled:text-zinc-700 disabled:cursor-not-allowed transition-colors shrink-0">
+                      Make coach
+                    </button>
+                  )}
                 </div>
               ))}
-              {members.filter(m => m.role !== "trainer").length === 0 && (
+              {students.length === 0 && (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-center text-sm text-zinc-500">
-                  No students yet — share the invite code
+                  No members yet — share the invite code
                 </div>
               )}
             </div>

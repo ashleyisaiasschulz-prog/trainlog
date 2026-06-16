@@ -15,14 +15,6 @@ interface Profile {
   share_stats: boolean; share_belt: boolean; is_trainer: boolean;
 }
 
-function RoleBadge({ isTrainer }: { isTrainer?: boolean }) {
-  return isTrainer ? (
-    <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md shrink-0">👨‍🏫 Coach</span>
-  ) : (
-    <span className="text-[10px] font-bold text-zinc-400 bg-zinc-700/50 px-2 py-0.5 rounded-md shrink-0">Student</span>
-  );
-}
-
 interface FriendEntry { id: string; profiles: Profile }
 
 const PROFILE_COLS = "id,username,display_name,gym,belt,stripes,share_stats,share_belt,is_trainer";
@@ -238,7 +230,6 @@ export default function FriendsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <p className="text-sm font-semibold text-zinc-100">@{p.username}</p>
-                    <RoleBadge isTrainer={p.is_trainer}/>
                   </div>
                   {p.gym && <p className="text-xs text-zinc-500">{p.gym}</p>}
                 </div>
@@ -271,7 +262,6 @@ export default function FriendsPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <p className="text-sm font-semibold text-zinc-100">@{f.profiles?.username}</p>
-                  <RoleBadge isTrainer={f.profiles?.is_trainer}/>
                 </div>
                 {f.profiles?.gym && <p className="text-xs text-zinc-500">{f.profiles.gym}</p>}
               </div>
@@ -310,7 +300,6 @@ export default function FriendsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="text-sm font-semibold text-zinc-100">@{p?.username}</p>
-                      <RoleBadge isTrainer={p?.is_trainer}/>
                     </div>
                     {p?.gym && <p className="text-xs text-zinc-500">{p.gym}</p>}
                     {p?.share_belt && (
