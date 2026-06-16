@@ -181,6 +181,20 @@ export default function FriendsPage() {
     return (
       <div className="px-4 pt-5 pb-28 flex flex-col gap-4 min-h-[calc(100vh-80px)]">
         <h1 className="text-xl font-bold tracking-tight text-zinc-100">Friends</h1>
+
+        {/* Groups are free — train with your gym */}
+        <Link href="/groups"
+          className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4 flex items-center gap-3 active:scale-[0.99] transition-all">
+          <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0">
+            <UsersRound size={20} className="text-red-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-zinc-100">Groups</p>
+            <p className="text-xs text-zinc-500">Join your gym, see the leaderboard & log classes — free</p>
+          </div>
+          <ChevronRight size={16} className="text-zinc-600 shrink-0" />
+        </Link>
+
         <PremiumGate
           title="Friends & Sparring — Premium"
           description="Connect with training partners, track head-to-head sparring records, and build your mat community."
