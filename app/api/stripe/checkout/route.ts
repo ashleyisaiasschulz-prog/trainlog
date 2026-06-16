@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       "mode":                                                  "subscription",
       "line_items[0][price_data][currency]":                   "eur",
       "line_items[0][price_data][product_data][name]":         "Grapplr Premium",
-      "line_items[0][price_data][product_data][description]":  "Turniere, Freunde & Statistiken",
+      "line_items[0][price_data][product_data][description]":  "Tournaments, friends & advanced analytics",
       "line_items[0][price_data][recurring][interval]":        "month",
       "line_items[0][price_data][unit_amount]":                "500",
       "line_items[0][quantity]":                               "1",

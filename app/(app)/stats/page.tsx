@@ -464,8 +464,8 @@ export default function StatsPage() {
       )}
       </>) : (
         <PremiumGate
-          title="Detaillierte Charts — Premium"
-          description="Schalte Trainingsfrequenz, Positions-Charts, Submissions, Sweeps und Escapes frei."
+          title="Advanced Analytics — Premium"
+          description="Unlock training frequency, position trends, submissions, sweeps, escapes and time-range filters to see exactly what's working."
         />
       )}
     </div>

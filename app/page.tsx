@@ -63,16 +63,18 @@ export default function LandingPage() {
 
       {/* ── Pricing ── */}
       <section className="px-5 pb-20 max-w-md mx-auto w-full">
-        <p className="text-center text-xs font-semibold text-zinc-600 uppercase tracking-widest mb-4">Pricing</p>
-        <div className="grid grid-cols-2 gap-3">
+        <p className="text-center text-xs font-semibold text-zinc-600 uppercase tracking-widest mb-1">Pricing</p>
+        <p className="text-center text-sm text-zinc-500 mb-5">Start free. Upgrade when you want more.</p>
+        <div className="grid grid-cols-2 gap-3 items-start">
           {/* Free */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
             <p className="text-xs font-semibold text-zinc-500 mb-1">Free</p>
-            <p className="text-3xl font-bold text-zinc-100">$0</p>
-            <ul className="mt-4 space-y-2.5">
-              {["Unlimited logging", "Local storage", "Full analytics"].map(f => (
-                <li key={f} className="flex items-center gap-2 text-xs text-zinc-300">
-                  <Check size={12} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
+            <p className="text-3xl font-bold text-zinc-100">€0</p>
+            <p className="text-[11px] text-zinc-600 mb-4 mt-0.5">forever</p>
+            <ul className="space-y-2.5">
+              {["Unlimited logging", "Cloud backup & sync", "Streaks & core stats", "Timer, calendar & notes"].map(f => (
+                <li key={f} className="flex items-start gap-2 text-xs text-zinc-300">
+                  <Check size={12} className="text-emerald-500 shrink-0 mt-0.5" strokeWidth={2.5} />
                   {f}
                 </li>
               ))}
@@ -80,22 +82,28 @@ export default function LandingPage() {
           </div>
 
           {/* Pro */}
-          <div className="bg-zinc-900 border border-red-500/20 rounded-2xl p-5 relative overflow-hidden">
+          <div className="bg-gradient-to-b from-red-500/[0.07] to-zinc-900 border border-red-500/40 rounded-2xl p-5 relative overflow-hidden ring-1 ring-red-500/20">
             <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-bold px-2 py-1 rounded-bl-xl tracking-widest">
-              SOON
+              POPULAR
             </div>
             <p className="text-xs font-semibold text-red-400 mb-1">Pro</p>
-            <p className="text-3xl font-bold text-zinc-100">$4</p>
-            <ul className="mt-4 space-y-2.5">
-              {["Cloud sync", "Multi-device", "Streak tracking"].map(f => (
-                <li key={f} className="flex items-center gap-2 text-xs text-zinc-300">
-                  <Check size={12} className="text-red-500 shrink-0" strokeWidth={2.5} />
+            <p className="text-3xl font-bold text-zinc-100">€5<span className="text-sm font-medium text-zinc-500">/mo</span></p>
+            <p className="text-[11px] text-zinc-600 mb-4 mt-0.5">cancel anytime</p>
+            <ul className="space-y-2.5">
+              {["Everything in Free", "Advanced analytics & filters", "Friends & sparring records", "Tournament tracking"].map((f, i) => (
+                <li key={f} className="flex items-start gap-2 text-xs text-zinc-300">
+                  <Check size={12} className={`shrink-0 mt-0.5 ${i === 0 ? "text-zinc-500" : "text-red-500"}`} strokeWidth={2.5} />
                   {f}
                 </li>
               ))}
             </ul>
+            <Link href="/register"
+              className="mt-5 flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-500 active:scale-[0.98] text-white font-semibold py-2.5 rounded-xl text-sm transition-all">
+              Start free <ArrowRight size={14} />
+            </Link>
           </div>
         </div>
+        <p className="text-center text-[11px] text-zinc-600 mt-4">No card needed to start · Upgrade anytime in the app</p>
       </section>
     </main>
   );
