@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { LogOut, Shield, LogIn, UserPlus, Sun, Moon, Pencil, Check, X, Bell, BellOff, TrendingUp, Zap, Swords, HelpCircle, Tags, ChevronRight } from "lucide-react";
+import { LogOut, Shield, LogIn, UserPlus, Sun, Moon, Pencil, Check, X, Bell, BellOff, TrendingUp, Zap, Swords, HelpCircle, Tags, ChevronRight, Crown, Loader2, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "@/hooks/useTheme";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
@@ -23,6 +23,44 @@ export default function AccountPage() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [editName, setEditName] = useState("");
   const [editGym, setEditGym]   = useState("");
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState("");
+
+  const manageSubscription = async () => {
+    if (!user) return;
+    setBillingLoading(true);
+    setBillingError("");
+    try {
+      const res = await fetch("/api/stripe/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else { setBillingError(data.error ?? "Could not open billing portal"); setBillingLoading(false); }
+    } catch {
+      setBillingError("Network error"); setBillingLoading(false);
+    }
+  };
+
+  const startUpgrade = async () => {
+    if (!user) return;
+    setBillingLoading(true);
+    setBillingError("");
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, email: user.email }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else { setBillingError(data.error ?? "Could not start checkout"); setBillingLoading(false); }
+    } catch {
+      setBillingError("Network error"); setBillingLoading(false);
+    }
+  };
 
   const togglePrivacy = async (field: "share_stats" | "share_belt" | "share_sessions") => {
     if (!user || !profile) return;
@@ -140,6 +178,42 @@ export default function AccountPage() {
               <Pencil size={15}/>
             </button>
           </div>
+        )}
+      </div>
+
+      {/* Subscription */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Subscription</p>
+        <div className="flex items-center gap-3">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${profile?.is_premium ? "bg-amber-500/10 text-amber-400" : "bg-zinc-800 text-zinc-500"}`}>
+            <Crown size={18} />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-zinc-200">
+              {profile?.is_premium ? "Grapplr Pro" : "Free plan"}
+            </p>
+            <p className="text-xs text-zinc-600">
+              {profile?.is_premium ? "Active · €5/mo" : "Upgrade for analytics, friends & tournaments"}
+            </p>
+          </div>
+        </div>
+
+        {billingError && (
+          <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2 mt-3">{billingError}</p>
+        )}
+
+        {profile?.is_premium ? (
+          <button onClick={manageSubscription} disabled={billingLoading}
+            className="mt-3 w-full flex items-center justify-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold py-2.5 rounded-xl text-sm transition-colors disabled:opacity-60">
+            {billingLoading ? <Loader2 size={14} className="animate-spin" /> : <ExternalLink size={14} />}
+            Manage subscription
+          </button>
+        ) : (
+          <button onClick={startUpgrade} disabled={billingLoading}
+            className="mt-3 w-full flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-bold py-2.5 rounded-xl text-sm transition-colors disabled:opacity-60">
+            {billingLoading ? <Loader2 size={14} className="animate-spin" /> : <Crown size={14} />}
+            Upgrade to Pro
+          </button>
         )}
       </div>
 

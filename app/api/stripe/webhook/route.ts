@@ -41,11 +41,12 @@ export async function POST(req: NextRequest) {
 
   if (event.type === "checkout.session.completed") {
     const userId = event.data.object?.metadata?.userId;
+    const customerId = event.data.object?.customer ?? null;
     console.log("Setting premium for userId:", userId);
     if (userId) {
       const { error } = await supabaseAdmin
         .from("profiles")
-        .update({ is_premium: true })
+        .update({ is_premium: true, stripe_customer_id: customerId })
         .eq("id", userId);
       if (error) console.error("DB error:", error.message);
     }
