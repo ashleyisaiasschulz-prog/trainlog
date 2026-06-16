@@ -104,6 +104,19 @@ export default function LandingPage() {
           </div>
         </div>
         <p className="text-center text-[11px] text-zinc-600 mt-4">No card needed to start · Upgrade anytime in the app</p>
+
+        {/* For gyms */}
+        <Link href="/register"
+          className="mt-5 block bg-zinc-900 border border-zinc-800 hover:border-amber-500/30 rounded-2xl p-4 transition-colors">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🥋</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-zinc-100">Running a gym?</p>
+              <p className="text-xs text-zinc-500">Create your gym, add coaches, schedule classes & track your members — €29/mo</p>
+            </div>
+            <ArrowRight size={16} className="text-zinc-600 shrink-0" />
+          </div>
+        </Link>
       </section>
     </main>
   );

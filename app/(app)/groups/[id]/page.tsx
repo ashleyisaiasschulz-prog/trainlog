@@ -31,6 +31,7 @@ interface TrainerSession {
   gi: boolean; recurring: boolean; day_of_week: number | null; active: boolean;
 }
 interface Rsvp { id: string; trainer_session_id: string; user_id: string; status: string }
+interface CoachNote { general: string; promotion: string }
 interface ChatMessage {
   id: string; user_id: string; content: string; created_at: string;
   profiles?: { username: string; display_name: string | null };
@@ -46,6 +47,9 @@ export default function GroupDetailPage() {
   const [members, setMembers]   = useState<Member[]>([]);
   const [sessions, setSessions] = useState<TrainerSession[]>([]);
   const [rsvps, setRsvps]       = useState<Rsvp[]>([]);
+  const [coachNotes, setCoachNotes] = useState<Record<string, CoachNote>>({});
+  const [editingNote, setEditingNote] = useState<string | null>(null);
+  const [noteForm, setNoteForm] = useState<CoachNote>({ general: "", promotion: "" });
   const [tab, setTab]           = useState<"sessions" | "members" | "chat" | "insights" | "board">("board");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
@@ -72,6 +76,17 @@ export default function GroupDetailPage() {
 
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError]     = useState("");
+
+  const saveCoachNote = async (studentId: string) => {
+    if (!user) return;
+    await sb.from("coach_notes").upsert({
+      group_id: id, student_id: studentId,
+      general: noteForm.general, promotion: noteForm.promotion,
+      updated_by: user.id, updated_at: new Date().toISOString(),
+    }, { onConflict: "group_id,student_id" });
+    setEditingNote(null);
+    await load();
+  };
 
   const upgradeToGym = async () => {
     if (!user) return;
@@ -104,6 +119,12 @@ export default function GroupDetailPage() {
     setSessions((s as TrainerSession[]) ?? []);
     const { data: r } = await sb.from("session_rsvps").select("id,trainer_session_id,user_id,status");
     setRsvps((r as Rsvp[]) ?? []);
+    // Coach notes (RLS returns rows only for coaches of a paid gym)
+    const { data: cn } = await sb.from("coach_notes")
+      .select("student_id, general, promotion").eq("group_id", id);
+    const map: Record<string, CoachNote> = {};
+    (cn ?? []).forEach((n: any) => { map[n.student_id] = { general: n.general ?? "", promotion: n.promotion ?? "" }; });
+    setCoachNotes(map);
   };
 
   useEffect(() => { load(); }, [user, id]);
@@ -393,24 +414,68 @@ export default function GroupDetailPage() {
               Members <span className="text-zinc-600 ml-1">{students.length}</span>
             </p>
             <div className="flex flex-col gap-2">
-              {students.map(m => (
-                <div key={m.user_id} className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
-                    {(m.profiles?.display_name || m.profiles?.username || "?")[0].toUpperCase()}
+              {students.map(m => {
+                const note = coachNotes[m.user_id];
+                const hasNote = !!note && (note.general.trim() || note.promotion.trim());
+                const open = editingNote === m.user_id;
+                return (
+                <div key={m.user_id} className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
+                      {(m.profiles?.display_name || m.profiles?.username || "?")[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-zinc-100">@{m.profiles?.username}</p>
+                      <p className="text-xs text-zinc-500 capitalize">{m.profiles?.belt} belt · {m.profiles?.stripes} stripes</p>
+                    </div>
+                    {/* Coach: open notes (gym only) */}
+                    {canCoach && (
+                      <button onClick={() => { setEditingNote(open ? null : m.user_id); setNoteForm(note ?? { general: "", promotion: "" }); }}
+                        className={`text-[10px] font-semibold transition-colors shrink-0 ${hasNote ? "text-amber-400 hover:text-amber-300" : "text-zinc-500 hover:text-zinc-300"}`}>
+                        {hasNote ? "📝 Note" : "+ Note"}
+                      </button>
+                    )}
+                    {/* Owner can promote a student to coach (gym only, if seats left) */}
+                    {isGym && isOwner && (
+                      <button onClick={() => setRole(m.user_id, "coach")} disabled={!canAddCoach}
+                        className="text-[10px] font-semibold text-amber-400 hover:text-amber-300 disabled:text-zinc-700 disabled:cursor-not-allowed transition-colors shrink-0">
+                        Make coach
+                      </button>
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-zinc-100">@{m.profiles?.username}</p>
-                    <p className="text-xs text-zinc-500 capitalize">{m.profiles?.belt} belt · {m.profiles?.stripes} stripes</p>
-                  </div>
-                  {/* Owner can promote a student to coach (gym only, if seats left) */}
-                  {isGym && isOwner && (
-                    <button onClick={() => setRole(m.user_id, "coach")} disabled={!canAddCoach}
-                      className="text-[10px] font-semibold text-amber-400 hover:text-amber-300 disabled:text-zinc-700 disabled:cursor-not-allowed transition-colors shrink-0">
-                      Make coach
-                    </button>
+
+                  {/* Coach note editor */}
+                  {canCoach && open && (
+                    <div className="mt-3 pt-3 border-t border-zinc-800 space-y-2">
+                      <div>
+                        <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-widest mb-1">Promotion readiness</p>
+                        <textarea value={noteForm.promotion} onChange={e => setNoteForm(f => ({ ...f, promotion: e.target.value }))}
+                          rows={2} placeholder="e.g. Ready for blue — guard solid, needs takedown defense"
+                          className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 resize-none" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1">General note</p>
+                        <textarea value={noteForm.general} onChange={e => setNoteForm(f => ({ ...f, general: e.target.value }))}
+                          rows={2} placeholder="Attendance, attitude, injuries, focus…"
+                          className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 resize-none" />
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => setEditingNote(null)} className="flex-1 py-2 rounded-xl bg-zinc-800 text-zinc-400 text-xs font-semibold">Cancel</button>
+                        <button onClick={() => saveCoachNote(m.user_id)} className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold">Save note</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Note preview (collapsed) */}
+                  {canCoach && !open && hasNote && (
+                    <div className="mt-2 space-y-1">
+                      {note.promotion.trim() && <p className="text-xs text-amber-400/90">🥋 {note.promotion}</p>}
+                      {note.general.trim() && <p className="text-xs text-zinc-500">{note.general}</p>}
+                    </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
               {students.length === 0 && (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-center text-sm text-zinc-500">
                   No members yet — share the invite code
