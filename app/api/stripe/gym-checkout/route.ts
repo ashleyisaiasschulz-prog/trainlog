@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       "subscription_data[metadata][groupId]":                  groupId,
       "subscription_data[metadata][userId]":                   userId,
       "allow_promotion_codes":                                 "true",
-      "success_url":  `${origin}/groups/${groupId}`,
+      "success_url":  `${origin}/groups/${groupId}?session_id={CHECKOUT_SESSION_ID}`,
       "cancel_url":   `${origin}/groups/${groupId}`,
     });
 

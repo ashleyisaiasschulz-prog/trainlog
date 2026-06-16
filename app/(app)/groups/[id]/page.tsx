@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState, useRef, Suspense } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy, Loader2 } from "lucide-react";
@@ -38,8 +38,13 @@ interface ChatMessage {
 }
 
 export default function GroupDetailPage() {
+  return <Suspense><GroupDetailInner /></Suspense>;
+}
+
+function GroupDetailInner() {
   const { id } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuthStore();
   const sb = createClient();
 
@@ -128,6 +133,24 @@ export default function GroupDetailPage() {
   };
 
   useEffect(() => { load(); }, [user, id]);
+
+  // After a gym checkout, confirm payment and unlock the group.
+  useEffect(() => {
+    const sessionId = searchParams.get("session_id");
+    if (!sessionId) return;
+    (async () => {
+      try {
+        await fetch("/api/stripe/verify-gym", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+        });
+      } catch { /* ignore */ }
+      router.replace(`/groups/${id}`);
+      await load();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Resolve a user_id → display name using the loaded member list
   const nameOf = (uid: string) => {

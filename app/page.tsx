@@ -106,7 +106,7 @@ export default function LandingPage() {
         <p className="text-center text-[11px] text-zinc-600 mt-4">No card needed to start · Upgrade anytime in the app</p>
 
         {/* For gyms */}
-        <Link href="/register"
+        <Link href="/groups"
           className="mt-5 block bg-zinc-900 border border-zinc-800 hover:border-amber-500/30 rounded-2xl p-4 transition-colors">
           <div className="flex items-center gap-3">
             <span className="text-xl">🥋</span>
