@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BarChart2, Trophy, Users } from "lucide-react";
+import { Home, BarChart2, Building2, Users } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export default function Navbar() {
@@ -28,9 +28,9 @@ export default function Navbar() {
             <BarChart2 />
           </NavItem>
 
-          {/* Competitions */}
-          <NavItem href="/tournaments" label="Comps" pathname={pathname}>
-            <Trophy />
+          {/* Gym / Groups */}
+          <NavItem href="/groups" label="Gym" pathname={pathname}>
+            <Building2 />
           </NavItem>
 
           {/* Friends */}

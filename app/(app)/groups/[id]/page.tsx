@@ -7,7 +7,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { DAY_NAMES_FULL, BELT_COLORS, Belt } from "@/lib/types";
-import { format } from "date-fns";
+import { format, differenceInDays, parseISO } from "date-fns";
 import { QRCodeSVG } from "qrcode.react";
 import { QrCode } from "lucide-react";
 
@@ -555,7 +555,10 @@ function GroupDetailInner() {
 
       {/* ── INSIGHTS TAB ── */}
       {tab === "insights" && isGym && (
-        <GroupInsights groupId={id as string} isTrainer={canCoach} memberCount={members.length} />
+        <div className="space-y-4">
+          {canCoach && <AttendanceOverview attendance={attendance} members={members} />}
+          <GroupInsights groupId={id as string} isTrainer={canCoach} memberCount={members.length} />
+        </div>
       )}
 
       {/* ── CHECK-IN QR MODAL ── */}
@@ -575,6 +578,83 @@ function GroupDetailInner() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Attendance overview (coach retention tool) ── */
+function AttendanceOverview({ attendance, members }: {
+  attendance: { trainer_session_id: string; user_id: string; date: string }[];
+  members: Member[];
+}) {
+  const now = new Date();
+  const nameOf = (m: Member) => m.profiles?.display_name || m.profiles?.username || "?";
+
+  const rows = members.map(m => {
+    const mine = attendance.filter(a => a.user_id === m.user_id);
+    const dates = mine.map(a => a.date).sort();
+    const last = dates.length ? dates[dates.length - 1] : null;
+    const last30 = mine.filter(a => differenceInDays(now, parseISO(a.date)) <= 30).length;
+    const daysSince = last ? differenceInDays(now, parseISO(last)) : null;
+    return { m, last, last30, daysSince };
+  });
+
+  const atRisk = rows
+    .filter(r => r.daysSince === null || r.daysSince >= 14)
+    .sort((a, b) => (b.daysSince ?? 9999) - (a.daysSince ?? 9999));
+  const topActive = [...rows]
+    .filter(r => r.last30 > 0)
+    .sort((a, b) => b.last30 - a.last30)
+    .slice(0, 8);
+
+  return (
+    <div className="space-y-4">
+      {/* At-risk / haven't been in */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+        <div>
+          <p className="text-[11px] font-semibold text-amber-400 uppercase tracking-widest">Needs a check-in</p>
+          <p className="text-xs text-zinc-600">Members who haven't trained in 2+ weeks — reach out before they drop off</p>
+        </div>
+        {atRisk.length === 0 ? (
+          <p className="text-xs text-zinc-500">Everyone's been on the mat recently 🔥</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {atRisk.map(({ m, daysSince }) => (
+              <div key={m.user_id} className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
+                  {nameOf(m)[0].toUpperCase()}
+                </div>
+                <p className="text-sm text-zinc-200 flex-1 min-w-0 truncate">{nameOf(m)}</p>
+                <span className="text-[11px] font-semibold text-amber-400 shrink-0">
+                  {daysSince === null ? "Never checked in" : `${daysSince}d ago`}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Most active */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Most active · last 30 days</p>
+        {topActive.length === 0 ? (
+          <p className="text-xs text-zinc-500">No check-ins yet. Hang up the QR and let members scan in.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {topActive.map(({ m, last30 }, i) => (
+              <div key={m.user_id} className="flex items-center gap-3">
+                <span className="w-5 text-center text-xs font-bold text-zinc-600">#{i + 1}</span>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
+                  {nameOf(m)[0].toUpperCase()}
+                </div>
+                <p className="text-sm text-zinc-200 flex-1 min-w-0 truncate">{nameOf(m)}</p>
+                <span className="text-sm font-bold tabular-nums text-zinc-100 shrink-0">{last30}</span>
+                <span className="text-[10px] text-zinc-600 shrink-0">classes</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
