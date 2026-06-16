@@ -8,6 +8,8 @@ import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarC
 import Link from "next/link";
 import { DAY_NAMES_FULL, BELT_COLORS, Belt } from "@/lib/types";
 import { format } from "date-fns";
+import { QRCodeSVG } from "qrcode.react";
+import { QrCode } from "lucide-react";
 
 // Belt → avatar styling (bg + text + ring)
 function beltAvatar(belt?: string) {
@@ -55,6 +57,10 @@ function GroupDetailInner() {
   const [coachNotes, setCoachNotes] = useState<Record<string, CoachNote>>({});
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [noteForm, setNoteForm] = useState<CoachNote>({ general: "", promotion: "" });
+  const [attendance, setAttendance] = useState<{ trainer_session_id: string; user_id: string; date: string }[]>([]);
+  const [showQR, setShowQR] = useState(false);
+  const [origin, setOrigin] = useState("");
+  useEffect(() => { setOrigin(window.location.origin); }, []);
   const [tab, setTab]           = useState<"sessions" | "members" | "chat" | "insights" | "board">("board");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
@@ -130,6 +136,10 @@ function GroupDetailInner() {
     const map: Record<string, CoachNote> = {};
     (cn ?? []).forEach((n: any) => { map[n.student_id] = { general: n.general ?? "", promotion: n.promotion ?? "" }; });
     setCoachNotes(map);
+    // Attendance (RLS: coaches see all, students see their own)
+    const { data: att } = await sb.from("attendance")
+      .select("trainer_session_id, user_id, date").eq("group_id", id);
+    setAttendance((att as any) ?? []);
   };
 
   useEffect(() => { load(); }, [user, id]);
@@ -161,6 +171,11 @@ function GroupDetailInner() {
     members.find(x => x.user_id === uid)?.profiles?.belt ?? "white";
   const goingUsers = (sid: string) =>
     rsvps.filter(r => r.trainer_session_id === sid && r.status === "going").map(r => r.user_id);
+
+  const todayKey = format(new Date(), "yyyy-MM-dd");
+  const attendedToday = (sid: string) =>
+    attendance.filter(a => a.trainer_session_id === sid && a.date === todayKey).map(a => a.user_id);
+  const checkinUrl = `${origin}/checkin/${id}`;
 
   const createSession = async () => {
     if (!user || !form.title.trim()) return;
@@ -253,10 +268,16 @@ function GroupDetailInner() {
       {tab === "sessions" && isGym && (
         <div className="space-y-4">
           {canCoach && (
-            <button onClick={() => setShowForm(v => !v)}
-              className="w-full bg-red-600 hover:bg-red-500 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors">
-              <Plus size={15}/> Schedule a Session
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => setShowForm(v => !v)}
+                className="flex-1 bg-red-600 hover:bg-red-500 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors">
+                <Plus size={15}/> Schedule
+              </button>
+              <button onClick={() => setShowQR(true)}
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold px-4 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors">
+                <QrCode size={16}/> Check-in QR
+              </button>
+            </div>
           )}
 
           {showForm && canCoach && (
@@ -358,6 +379,19 @@ function GroupDetailInner() {
                             </div>
                           )}
                         </div>
+                        {/* Checked in today (coach view) */}
+                        {canCoach && attendedToday(s.id).length > 0 && (
+                          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
+                              <Check size={11}/> {attendedToday(s.id).length} checked in today:
+                            </span>
+                            {attendedToday(s.id).map(uid => (
+                              <span key={uid} className="inline-flex items-center gap-1 text-[11px] text-zinc-300 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                                {nameOf(uid)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       {canCoach && (
                         <button onClick={()=>deleteSession(s.id)} className="text-zinc-700 hover:text-red-500 p-1">
@@ -522,6 +556,24 @@ function GroupDetailInner() {
       {/* ── INSIGHTS TAB ── */}
       {tab === "insights" && isGym && (
         <GroupInsights groupId={id as string} isTrainer={canCoach} memberCount={members.length} />
+      )}
+
+      {/* ── CHECK-IN QR MODAL ── */}
+      {showQR && (
+        <div onClick={() => setShowQR(false)}
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6">
+          <div onClick={e => e.stopPropagation()}
+            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-xs w-full flex flex-col items-center gap-4 text-center">
+            <p className="text-sm font-bold text-zinc-100">Check-in QR</p>
+            <p className="text-xs text-zinc-500 -mt-2">Print this and hang it at the door. Members scan to check in.</p>
+            <div className="bg-white rounded-xl p-4">
+              {origin && <QRCodeSVG value={checkinUrl} size={200} />}
+            </div>
+            <p className="text-[10px] text-zinc-600 break-all">{checkinUrl}</p>
+            <button onClick={() => setShowQR(false)}
+              className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold py-2.5 rounded-xl text-sm">Close</button>
+          </div>
+        </div>
       )}
     </div>
   );
