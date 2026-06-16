@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy, Loader2, Pencil } from "lucide-react";
 import Link from "next/link";
 import { DAY_NAMES_FULL, BELT_COLORS, Belt } from "@/lib/types";
 import { format, differenceInDays, parseISO } from "date-fns";
@@ -32,7 +32,8 @@ interface TrainerSession {
   date: string | null; time: string | null; duration: number | null;
   gi: boolean; recurring: boolean; day_of_week: number | null; active: boolean;
 }
-interface Rsvp { id: string; trainer_session_id: string; user_id: string; status: string }
+interface Rsvp { id: string; trainer_session_id: string; user_id: string; status: string; occurrence_date: string | null }
+interface Occurrence { session: TrainerSession; date: string; key: string }
 interface CoachNote { general: string; promotion: string }
 interface ChatMessage {
   id: string; user_id: string; content: string; created_at: string;
@@ -63,6 +64,7 @@ function GroupDetailInner() {
   useEffect(() => { setOrigin(window.location.origin); }, []);
   const [tab, setTab]           = useState<"sessions" | "members" | "chat" | "insights" | "board">("board");
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "", description: "", focus: "", date: format(new Date(), "yyyy-MM-dd"),
     time: "19:00", duration: 90, gi: true, recurring: false, day_of_week: 2,
@@ -140,7 +142,7 @@ function GroupDetailInner() {
     const { data: s } = await sb.from("trainer_sessions")
       .select("*").eq("group_id", id).eq("active", true).order("date", { ascending: true });
     setSessions((s as TrainerSession[]) ?? []);
-    const { data: r } = await sb.from("session_rsvps").select("id,trainer_session_id,user_id,status");
+    const { data: r } = await sb.from("session_rsvps").select("id,trainer_session_id,user_id,status,occurrence_date");
     setRsvps((r as Rsvp[]) ?? []);
     // Coach notes (RLS returns rows only for coaches of a paid gym)
     const { data: cn } = await sb.from("coach_notes")
@@ -192,25 +194,74 @@ function GroupDetailInner() {
   };
   const beltOf = (uid: string) =>
     members.find(x => x.user_id === uid)?.profiles?.belt ?? "white";
-  const goingUsers = (sid: string) =>
-    rsvps.filter(r => r.trainer_session_id === sid && r.status === "going").map(r => r.user_id);
+  const goingUsers = (sid: string, date: string) =>
+    rsvps.filter(r => r.trainer_session_id === sid && r.occurrence_date === date && r.status === "going").map(r => r.user_id);
 
-  const todayKey = format(new Date(), "yyyy-MM-dd");
-  const attendedToday = (sid: string) =>
-    attendance.filter(a => a.trainer_session_id === sid && a.date === todayKey).map(a => a.user_id);
+  const attendedOn = (sid: string, date: string) =>
+    attendance.filter(a => a.trainer_session_id === sid && a.date === date).map(a => a.user_id);
   const checkinUrl = `${origin}/checkin/${id}`;
 
-  const createSession = async () => {
+  // Expand recurring templates into concrete dated occurrences (next 4 weeks),
+  // one-off sessions stay as their single date. Each occurrence gets its own
+  // RSVP / attendance via occurrence_date.
+  const WEEKS_AHEAD = 4;
+  const buildOccurrences = (): Occurrence[] => {
+    const out: Occurrence[] = [];
+    for (const s of sessions) {
+      if (s.recurring && s.day_of_week != null) {
+        const d = new Date(); d.setHours(0, 0, 0, 0);
+        const diff = (s.day_of_week - d.getDay() + 7) % 7;
+        d.setDate(d.getDate() + diff);
+        for (let i = 0; i < WEEKS_AHEAD; i++) {
+          const dateStr = format(d, "yyyy-MM-dd");
+          out.push({ session: s, date: dateStr, key: `${s.id}-${dateStr}` });
+          d.setDate(d.getDate() + 7);
+        }
+      } else if (s.date) {
+        out.push({ session: s, date: s.date, key: `${s.id}-${s.date}` });
+      }
+    }
+    out.sort((a, b) =>
+      (a.date + (a.session.time ?? "")).localeCompare(b.date + (b.session.time ?? ""))
+    );
+    return out;
+  };
+
+  const resetForm = () =>
+    setForm({
+      title: "", description: "", focus: "", date: format(new Date(), "yyyy-MM-dd"),
+      time: "19:00", duration: 90, gi: true, recurring: false, day_of_week: 2,
+    });
+
+  const startCreate = () => { setEditingId(null); resetForm(); setShowForm(true); };
+
+  const startEdit = (s: TrainerSession) => {
+    setEditingId(s.id);
+    setForm({
+      title: s.title, description: s.description ?? "", focus: s.focus ?? "",
+      date: s.date ?? format(new Date(), "yyyy-MM-dd"),
+      time: (s.time ?? "19:00").slice(0, 5), duration: s.duration ?? 90, gi: s.gi,
+      recurring: s.recurring, day_of_week: s.day_of_week ?? 2,
+    });
+    setShowForm(true);
+  };
+
+  const saveSession = async () => {
     if (!user || !form.title.trim()) return;
-    await sb.from("trainer_sessions").insert({
-      group_id: id, trainer_id: user.id,
+    const payload = {
       title: form.title, description: form.description, focus: form.focus,
       date: form.recurring ? null : form.date,
       time: form.time, duration: form.duration, gi: form.gi,
       recurring: form.recurring, day_of_week: form.recurring ? form.day_of_week : null,
-    });
+    };
+    if (editingId) {
+      await sb.from("trainer_sessions").update(payload).eq("id", editingId);
+    } else {
+      await sb.from("trainer_sessions").insert({ ...payload, group_id: id, trainer_id: user.id });
+    }
     setShowForm(false);
-    setForm({ ...form, title: "", description: "", focus: "" });
+    setEditingId(null);
+    resetForm();
     await load();
   };
 
@@ -219,22 +270,22 @@ function GroupDetailInner() {
     await load();
   };
 
-  const myRsvp = (sid: string) => rsvps.find(r => r.trainer_session_id === sid && r.user_id === user?.id);
+  const myRsvp = (sid: string, date: string) =>
+    rsvps.find(r => r.trainer_session_id === sid && r.occurrence_date === date && r.user_id === user?.id);
 
-  const toggleRsvp = async (sid: string, going: boolean) => {
+  const toggleRsvp = async (sid: string, date: string, going: boolean) => {
     if (!user) return;
-    const existing = myRsvp(sid);
+    const existing = myRsvp(sid, date);
     if (existing) {
       await sb.from("session_rsvps").update({ status: going ? "going" : "not_going" }).eq("id", existing.id);
     } else {
       await sb.from("session_rsvps").insert({
         trainer_session_id: sid, user_id: user.id, status: going ? "going" : "not_going",
+        occurrence_date: date,
       });
     }
     await load();
   };
-
-  const goingCount = (sid: string) => rsvps.filter(r => r.trainer_session_id === sid && r.status === "going").length;
 
   if (!group) {
     return <div className="px-4 pt-5 pb-28 text-center text-zinc-500 text-sm">Loading…</div>;
@@ -299,7 +350,7 @@ function GroupDetailInner() {
         <div className="space-y-4">
           {canCoach && (
             <div className="flex gap-2">
-              <button onClick={() => setShowForm(v => !v)}
+              <button onClick={() => showForm ? (setShowForm(false), setEditingId(null)) : startCreate()}
                 className="flex-1 bg-red-600 hover:bg-red-500 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors">
                 <Plus size={15}/> Schedule
               </button>
@@ -312,6 +363,7 @@ function GroupDetailInner() {
 
           {showForm && canCoach && (
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+              <p className="text-sm font-semibold text-zinc-100">{editingId ? "Edit session" : "New session"}</p>
               <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))}
                 placeholder="Session title (e.g. Guard Passing)"
                 className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600" />
@@ -353,131 +405,144 @@ function GroupDetailInner() {
               </div>
 
               <div className="flex gap-2">
-                <button onClick={()=>setShowForm(false)} className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-400 text-sm">Cancel</button>
-                <button onClick={createSession} disabled={!form.title.trim()}
-                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold disabled:opacity-30">Schedule</button>
+                <button onClick={()=>{ setShowForm(false); setEditingId(null); }} className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-400 text-sm">Cancel</button>
+                <button onClick={saveSession} disabled={!form.title.trim()}
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold disabled:opacity-30">{editingId ? "Save" : "Schedule"}</button>
               </div>
             </div>
           )}
 
-          {/* Session list */}
-          {sessions.length === 0 ? (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
-              <Calendar size={26} className="text-zinc-700 mx-auto mb-2"/>
-              <p className="text-sm text-zinc-500">No sessions scheduled yet</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {sessions.map(s => {
-                const mine = myRsvp(s.id);
-                return (
-                  <div key={s.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-zinc-100">{s.title}</p>
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${s.gi ? "bg-blue-500/10 text-blue-400" : "bg-violet-500/10 text-violet-400"}`}>
-                            {s.gi ? "Gi" : "No-Gi"}
-                          </span>
-                        </div>
-                        <p className="text-xs text-zinc-500 mt-0.5 flex items-center gap-1">
-                          <Clock size={11}/>
-                          {s.recurring ? `Every ${DAY_NAMES_FULL[s.day_of_week ?? 0]}` : (s.date && format(new Date(s.date+"T12:00:00"),"EEE, MMM d"))}
-                          {" · "}{s.time?.slice(0,5)} · {s.duration}min
-                        </p>
-                        {s.focus && (
-                          <div className="mt-2 flex items-start gap-1.5 bg-zinc-800/50 rounded-lg px-2.5 py-1.5">
-                            <Target size={12} className="text-red-400 mt-0.5 shrink-0"/>
-                            <p className="text-xs text-zinc-300">{s.focus}</p>
+          {/* Occurrence list — recurring templates expanded into dated classes */}
+          {(() => {
+            const occs = buildOccurrences();
+            if (occs.length === 0) {
+              return (
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
+                  <Calendar size={26} className="text-zinc-700 mx-auto mb-2"/>
+                  <p className="text-sm text-zinc-500">No sessions scheduled yet</p>
+                </div>
+              );
+            }
+            return (
+              <div className="flex flex-col gap-2">
+                {occs.map(({ session: s, date, key }) => {
+                  const mine = myRsvp(s.id, date);
+                  const going = goingUsers(s.id, date);
+                  return (
+                    <div key={key} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-zinc-100">{s.title}</p>
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${s.gi ? "bg-blue-500/10 text-blue-400" : "bg-violet-500/10 text-violet-400"}`}>
+                              {s.gi ? "Gi" : "No-Gi"}
+                            </span>
+                            {s.recurring && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-500">weekly</span>
+                            )}
                           </div>
-                        )}
-                        {/* Who's coming */}
-                        <div className="mt-2.5">
-                          {goingUsers(s.id).length === 0 ? (
-                            <p className="text-[11px] text-zinc-600">No one confirmed yet</p>
-                          ) : (
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-[11px] text-zinc-500">{goingUsers(s.id).length} coming:</span>
-                              {goingUsers(s.id).map(uid => (
-                                <span key={uid} className="inline-flex items-center gap-1 text-[11px] text-zinc-300 bg-zinc-800 px-2 py-0.5 rounded-md">
-                                  <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold border border-black/20 ${beltAvatar(beltOf(uid))}`}>
-                                    {nameOf(uid)[0].toUpperCase()}
-                                  </span>
-                                  {nameOf(uid)}
-                                </span>
-                              ))}
+                          <p className="text-xs text-zinc-500 mt-0.5 flex items-center gap-1">
+                            <Clock size={11}/>
+                            {format(new Date(date+"T12:00:00"),"EEE, MMM d")}
+                            {" · "}{s.time?.slice(0,5)} · {s.duration}min
+                          </p>
+                          {s.focus && (
+                            <div className="mt-2 flex items-start gap-1.5 bg-zinc-800/50 rounded-lg px-2.5 py-1.5">
+                              <Target size={12} className="text-red-400 mt-0.5 shrink-0"/>
+                              <p className="text-xs text-zinc-300">{s.focus}</p>
                             </div>
                           )}
+                          {/* Who's coming */}
+                          <div className="mt-2.5">
+                            {going.length === 0 ? (
+                              <p className="text-[11px] text-zinc-600">No one confirmed yet</p>
+                            ) : (
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[11px] text-zinc-500">{going.length} coming:</span>
+                                {going.map(uid => (
+                                  <span key={uid} className="inline-flex items-center gap-1 text-[11px] text-zinc-300 bg-zinc-800 px-2 py-0.5 rounded-md">
+                                    <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold border border-black/20 ${beltAvatar(beltOf(uid))}`}>
+                                      {nameOf(uid)[0].toUpperCase()}
+                                    </span>
+                                    {nameOf(uid)}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {/* Attendance (coach view): who came + no-shows for THIS date */}
+                          {canCoach && (() => {
+                            const came = attendedOn(s.id, date);
+                            const sessionOver = (() => {
+                              if (!s.time) return false;
+                              const [h, m] = s.time.split(":").map(Number);
+                              const end = new Date(date+"T00:00:00");
+                              end.setHours(h, m + (s.duration ?? 60), 0, 0);
+                              return new Date() >= end;
+                            })();
+                            const noShow = sessionOver ? going.filter(uid => !came.includes(uid)) : [];
+                            if (came.length === 0 && noShow.length === 0) return null;
+                            return (
+                              <div className="mt-2 space-y-1.5">
+                                {came.length > 0 && (
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
+                                      <Check size={11}/> {came.length} came:
+                                    </span>
+                                    {came.map(uid => (
+                                      <span key={uid} className="text-[11px] text-zinc-300 bg-emerald-500/10 px-2 py-0.5 rounded-md">{nameOf(uid)}</span>
+                                    ))}
+                                  </div>
+                                )}
+                                {noShow.length > 0 && (
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-400">
+                                      <X size={11}/> {noShow.length} said yes but didn't show:
+                                    </span>
+                                    {noShow.map(uid => (
+                                      <span key={uid} className="text-[11px] text-zinc-400 bg-amber-500/10 px-2 py-0.5 rounded-md">{nameOf(uid)}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
-                        {/* Attendance today (coach view): who actually came + no-shows */}
-                        {canCoach && (() => {
-                          const came = attendedToday(s.id);
-                          // Only show no-shows after the session's scheduled end time
-                          const sessionOver = (() => {
-                            if (!s.time) return false;
-                            const [h, m] = s.time.split(":").map(Number);
-                            const endMin = h * 60 + m + (s.duration ?? 60);
-                            const now = new Date();
-                            const nowMin = now.getHours() * 60 + now.getMinutes();
-                            return nowMin >= endMin;
-                          })();
-                          const noShow = sessionOver ? goingUsers(s.id).filter(uid => !came.includes(uid)) : [];
-                          if (came.length === 0 && noShow.length === 0) return null;
-                          return (
-                            <div className="mt-2 space-y-1.5">
-                              {came.length > 0 && (
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
-                                    <Check size={11}/> {came.length} came:
-                                  </span>
-                                  {came.map(uid => (
-                                    <span key={uid} className="text-[11px] text-zinc-300 bg-emerald-500/10 px-2 py-0.5 rounded-md">{nameOf(uid)}</span>
-                                  ))}
-                                </div>
-                              )}
-                              {noShow.length > 0 && (
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-400">
-                                    <X size={11}/> {noShow.length} said yes but didn't show:
-                                  </span>
-                                  {noShow.map(uid => (
-                                    <span key={uid} className="text-[11px] text-zinc-400 bg-amber-500/10 px-2 py-0.5 rounded-md">{nameOf(uid)}</span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
+                        {canCoach && (
+                          <div className="flex flex-col gap-1 shrink-0">
+                            <button onClick={()=>startEdit(s)} className="text-zinc-700 hover:text-zinc-300 p-1">
+                              <Pencil size={14}/>
+                            </button>
+                            <button onClick={()=>deleteSession(s.id)} className="text-zinc-700 hover:text-red-500 p-1">
+                              <Trash2 size={14}/>
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      {canCoach && (
-                        <button onClick={()=>deleteSession(s.id)} className="text-zinc-700 hover:text-red-500 p-1">
-                          <Trash2 size={14}/>
-                        </button>
+
+                      {/* RSVP buttons (per date) */}
+                      {!canCoach && (
+                        <div className="flex gap-2 mt-3 pt-3 border-t border-zinc-800">
+                          <button onClick={()=>toggleRsvp(s.id, date, true)}
+                            className={`flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+                              mine?.status==="going" ? "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30" : "bg-zinc-800 text-zinc-400"
+                            }`}>
+                            <Check size={13}/> I'll be there
+                          </button>
+                          <button onClick={()=>toggleRsvp(s.id, date, false)}
+                            className={`flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+                              mine?.status==="not_going" ? "bg-red-500/15 text-red-400 ring-1 ring-red-500/30" : "bg-zinc-800 text-zinc-400"
+                            }`}>
+                            <X size={13}/> Can't make it
+                          </button>
+                        </div>
                       )}
                     </div>
-
-                    {/* RSVP buttons */}
-                    {!canCoach && (
-                      <div className="flex gap-2 mt-3 pt-3 border-t border-zinc-800">
-                        <button onClick={()=>toggleRsvp(s.id, true)}
-                          className={`flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
-                            mine?.status==="going" ? "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30" : "bg-zinc-800 text-zinc-400"
-                          }`}>
-                          <Check size={13}/> I'll be there
-                        </button>
-                        <button onClick={()=>toggleRsvp(s.id, false)}
-                          className={`flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
-                            mine?.status==="not_going" ? "bg-red-500/15 text-red-400 ring-1 ring-red-500/30" : "bg-zinc-800 text-zinc-400"
-                          }`}>
-                          <X size={13}/> Can't make it
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 

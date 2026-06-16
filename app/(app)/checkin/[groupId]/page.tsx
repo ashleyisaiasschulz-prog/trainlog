@@ -56,7 +56,7 @@ export default function CheckinPage() {
       // Which of today's sessions did I RSVP "going" to? (just to highlight)
       const { data: rs } = await sb.from("session_rsvps")
         .select("trainer_session_id")
-        .eq("user_id", user.id).eq("status", "going")
+        .eq("user_id", user.id).eq("status", "going").eq("occurrence_date", today)
         .in("trainer_session_id", todays.map(t => t.id));
       setRsvpd(new Set((rs ?? []).map((r: any) => r.trainer_session_id)));
 
