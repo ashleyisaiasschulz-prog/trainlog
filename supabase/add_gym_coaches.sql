@@ -29,4 +29,32 @@ create policy "trs_update" on trainer_sessions for update
 create policy "trs_delete" on trainer_sessions for delete
   using (is_group_coach(group_id, auth.uid()));
 
+-- Let any coach (not only the owner) view the group's aggregated insights.
+create or replace function group_insights(gid uuid)
+returns table(kind text, name text, count bigint)
+language plpgsql security definer set search_path = public as $$
+begin
+  -- caller must be a coach of this group
+  if not is_group_coach(gid, auth.uid()) then
+    return;
+  end if;
+
+  return query
+  with member_sessions as (
+    select ts.* from training_sessions ts
+    join group_members gm on gm.user_id = ts.user_id
+    join profiles p on p.id = ts.user_id
+    where gm.group_id = gid and p.share_sessions = true
+  )
+  select 'position'::text, pos, count(*)::bigint
+    from member_sessions, unnest(positions) as pos group by pos
+  union all
+  select 'sub_given'::text, s, count(*)::bigint
+    from member_sessions, unnest(submissions_given) as s group by s
+  union all
+  select 'sub_received'::text, s, count(*)::bigint
+    from member_sessions, unnest(submissions_received) as s group by s;
+end;
+$$;
+
 select 'gym coaches ready ✓' as status;

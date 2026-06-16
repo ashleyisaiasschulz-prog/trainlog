@@ -611,7 +611,7 @@ function GroupInsights({ groupId, memberCount, isTrainer }: { groupId: string; i
   if (!isTrainer) {
     return (
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-        <p className="text-sm text-zinc-500">Only trainers can view aggregated group analytics.</p>
+        <p className="text-sm text-zinc-500">Only coaches can view aggregated group analytics.</p>
       </div>
     );
   }
