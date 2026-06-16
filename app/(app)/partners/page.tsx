@@ -5,8 +5,7 @@ import { ArrowLeft, Plus, Trash2, Pencil, X, Check, Users2, Search } from "lucid
 import Link from "next/link";
 import { usePartnerStore, PARTNER_TAGS, Partner } from "@/store/usePartnerStore";
 import { format } from "date-fns";
-
-function randomId() { return Math.random().toString(36).slice(2, 10); }
+import { randomId } from "@/lib/id";
 
 const BELT_COLORS: Record<string, string> = {
   white:  "bg-zinc-200 text-zinc-800",

@@ -6,6 +6,8 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useTrainingStore } from "@/store/useTrainingStore";
 import { useTagStore } from "@/store/useTagStore";
 import { useInjuryStore } from "@/store/useInjuryStore";
+import { useTechniqueStore } from "@/store/useTechniqueStore";
+import { usePartnerStore } from "@/store/usePartnerStore";
 import type { User } from "@supabase/supabase-js";
 
 async function ensureProfile(sb: ReturnType<typeof createClient>, user: User) {
@@ -49,6 +51,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       loadFromCloud(user.id).catch(() => {});
       useTagStore.getState().loadFromCloud(user.id).catch(() => {});
       useInjuryStore.getState().loadFromCloud(user.id).catch(() => {});
+      useTechniqueStore.getState().loadFromCloud(user.id).catch(() => {});
+      usePartnerStore.getState().loadFromCloud(user.id).catch(() => {});
     };
 
     // Initial check — decide auth state FAST, then stop loading no matter what
@@ -72,6 +76,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         reset();
         useTagStore.getState().signOut();
         useInjuryStore.getState().signOut();
+        useTechniqueStore.getState().signOut();
+        usePartnerStore.getState().signOut();
       }
     });
 

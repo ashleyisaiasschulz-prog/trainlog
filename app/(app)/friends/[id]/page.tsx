@@ -10,6 +10,7 @@ import BeltBadge from "@/components/BeltBadge";
 import { usePartnerStore } from "@/store/usePartnerStore";
 import { format, startOfMonth } from "date-fns";
 import RangeTabs, { Range, inRange } from "@/components/RangeTabs";
+import { randomId } from "@/lib/id";
 import { useTagStore } from "@/store/useTagStore";
 import type { Belt } from "@/lib/types";
 
@@ -57,7 +58,7 @@ export default function FriendStatsPage() {
     if (partnerNote) {
       updatePartner({ ...partnerNote, notes: noteText });
     } else {
-      addPartner({ id: Math.random().toString(36).slice(2), name, belt: profile.belt, gym: profile.gym ?? "", notes: noteText, watchFor: "", tags: [], date: format(new Date(), "yyyy-MM-dd") });
+      addPartner({ id: randomId(), name, belt: profile.belt, gym: profile.gym ?? "", notes: noteText, watchFor: "", tags: [], date: format(new Date(), "yyyy-MM-dd") });
     }
     setEditingNote(false);
   };

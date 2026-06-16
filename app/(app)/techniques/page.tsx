@@ -5,8 +5,7 @@ import { ArrowLeft, Plus, Trash2, Pencil, X, Check, BookOpen } from "lucide-reac
 import Link from "next/link";
 import { useTechniqueStore, TECHNIQUE_CATEGORIES, TechniqueCategory, TechniqueNote } from "@/store/useTechniqueStore";
 import { format } from "date-fns";
-
-function randomId() { return Math.random().toString(36).slice(2, 10); }
+import { randomId } from "@/lib/id";
 
 const CAT_COLOR: Record<TechniqueCategory, string> = {
   guard:       "bg-blue-500/10 text-blue-400 border-blue-500/20",
