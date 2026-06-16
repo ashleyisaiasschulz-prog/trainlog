@@ -230,6 +230,13 @@ function GroupDetailInner() {
             {group.gym && `${group.gym} · `}{members.length} member{members.length !== 1 ? "s" : ""} · Code <span className="font-mono text-zinc-400">{group.invite_code}</span>
           </p>
         </div>
+        {/* Members check in by scanning the gym QR */}
+        {isGym && !canCoach && (
+          <Link href="/scan"
+            className="shrink-0 flex items-center gap-1.5 bg-red-600 hover:bg-red-500 text-white font-semibold px-3 py-2 rounded-xl text-sm transition-colors">
+            <QrCode size={15}/> Check in
+          </Link>
+        )}
       </div>
 
       {/* Upgrade-to-Gym banner (free group, owner only) */}
@@ -379,19 +386,36 @@ function GroupDetailInner() {
                             </div>
                           )}
                         </div>
-                        {/* Checked in today (coach view) */}
-                        {canCoach && attendedToday(s.id).length > 0 && (
-                          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
-                              <Check size={11}/> {attendedToday(s.id).length} checked in today:
-                            </span>
-                            {attendedToday(s.id).map(uid => (
-                              <span key={uid} className="inline-flex items-center gap-1 text-[11px] text-zinc-300 bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                                {nameOf(uid)}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                        {/* Attendance today (coach view): who actually came + no-shows */}
+                        {canCoach && (() => {
+                          const came = attendedToday(s.id);
+                          const noShow = goingUsers(s.id).filter(uid => !came.includes(uid));
+                          if (came.length === 0 && noShow.length === 0) return null;
+                          return (
+                            <div className="mt-2 space-y-1.5">
+                              {came.length > 0 && (
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
+                                    <Check size={11}/> {came.length} came:
+                                  </span>
+                                  {came.map(uid => (
+                                    <span key={uid} className="text-[11px] text-zinc-300 bg-emerald-500/10 px-2 py-0.5 rounded-md">{nameOf(uid)}</span>
+                                  ))}
+                                </div>
+                              )}
+                              {noShow.length > 0 && (
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-400">
+                                    <X size={11}/> {noShow.length} said yes but didn't show:
+                                  </span>
+                                  {noShow.map(uid => (
+                                    <span key={uid} className="text-[11px] text-zinc-400 bg-amber-500/10 px-2 py-0.5 rounded-md">{nameOf(uid)}</span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                       {canCoach && (
                         <button onClick={()=>deleteSession(s.id)} className="text-zinc-700 hover:text-red-500 p-1">
