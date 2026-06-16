@@ -4,10 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, BarChart2, Building2, Users } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useGymStore } from "@/store/useGymStore";
 
 export default function Navbar() {
   const pathname = usePathname();
   const { profile } = useAuthStore();
+  const gymIds = useGymStore((s) => s.gymIds);
+
+  // With exactly one gym, link the tab straight to it — no redirect hop.
+  const gymHref = gymIds.length === 1 ? `/groups/${gymIds[0]}` : "/groups";
 
   const initial = (profile?.display_name || profile?.username || "?")[0].toUpperCase();
   const profileActive = pathname === "/account";
@@ -29,7 +34,7 @@ export default function Navbar() {
           </NavItem>
 
           {/* Gym / Groups */}
-          <NavItem href="/groups" label="Gym" pathname={pathname}>
+          <NavItem href={gymHref} label="Gym" pathname={pathname} activeMatch="/groups">
             <Building2 />
           </NavItem>
 
@@ -64,11 +69,12 @@ export default function Navbar() {
 }
 
 function NavItem({
-  href, label, pathname, children,
+  href, label, pathname, children, activeMatch,
 }: {
-  href: string; label: string; pathname: string; children: React.ReactNode;
+  href: string; label: string; pathname: string; children: React.ReactNode; activeMatch?: string;
 }) {
-  const active = pathname === href || pathname.startsWith(href + "/");
+  const base = activeMatch ?? href;
+  const active = pathname === base || pathname.startsWith(base + "/");
   return (
     <Link href={href} className="flex-1 flex flex-col items-center justify-center gap-1 py-1">
       <div className={`p-1.5 rounded-xl transition-colors duration-150 ${active ? "bg-red-500/10" : ""}`}>

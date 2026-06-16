@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useGymStore } from "@/store/useGymStore";
 import { Building2, Plus, LogIn, ChevronRight, Hash, Crown, Loader2 } from "lucide-react";
 import Link from "next/link";
 
@@ -38,7 +39,10 @@ function GymsInner() {
       .select("groups(id,name,description,gym,trainer_id,invite_code,is_gym)")
       .eq("user_id", user.id);
     const all = (data?.map((d: any) => d.groups).filter(Boolean) ?? []) as Group[];
-    setGyms(all.filter(g => g.is_gym));
+    const myGyms = all.filter(g => g.is_gym);
+    setGyms(myGyms);
+    // Cache ids so the nav can link straight to the gym (no redirect hop)
+    useGymStore.getState().setGymIds(myGyms.map(g => g.id));
   };
 
   useEffect(() => { loadGyms(); }, [user]);

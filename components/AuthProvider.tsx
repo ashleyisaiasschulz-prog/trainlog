@@ -8,6 +8,7 @@ import { useTagStore } from "@/store/useTagStore";
 import { useInjuryStore } from "@/store/useInjuryStore";
 import { useTechniqueStore } from "@/store/useTechniqueStore";
 import { usePartnerStore } from "@/store/usePartnerStore";
+import { useGymStore } from "@/store/useGymStore";
 import type { User } from "@supabase/supabase-js";
 
 async function ensureProfile(sb: ReturnType<typeof createClient>, user: User) {
@@ -52,6 +53,14 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       useInjuryStore.getState().loadFromCloud(user.id).catch(() => {});
       useTechniqueStore.getState().loadFromCloud(user.id).catch(() => {});
       usePartnerStore.getState().loadFromCloud(user.id).catch(() => {});
+      // Warm the gym cache so the nav can link straight to the user's gym
+      sb.from("group_members")
+        .select("groups(id,is_gym)")
+        .eq("user_id", user.id)
+        .then(({ data }) => {
+          const ids = (data?.map((d: any) => d.groups).filter((g: any) => g?.is_gym).map((g: any) => g.id)) ?? [];
+          useGymStore.getState().setGymIds(ids);
+        });
     };
 
     // Initial check — decide auth state FAST, then stop loading no matter what
@@ -77,6 +86,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         useInjuryStore.getState().signOut();
         useTechniqueStore.getState().signOut();
         usePartnerStore.getState().signOut();
+        useGymStore.getState().setGymIds([]);
       }
     });
 
