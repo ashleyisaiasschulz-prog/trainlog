@@ -26,7 +26,7 @@ interface Group {
   max_coaches?: number | null; is_gym?: boolean | null;
 }
 interface MiniProfile { username: string; display_name: string | null; belt: string; stripes: number }
-interface Member { user_id: string; role: string; profiles: MiniProfile }
+interface Member { user_id: string; role: string; joined_at?: string | null; profiles: MiniProfile }
 interface TrainerSession {
   id: string; title: string; description: string | null; focus: string | null;
   date: string | null; time: string | null; duration: number | null;
@@ -136,7 +136,7 @@ function GroupDetailInner() {
     const { data: g } = await sb.from("groups").select("*").eq("id", id).single();
     setGroup(g);
     const { data: m } = await sb.from("group_members")
-      .select("user_id, role, profiles(username,display_name,belt,stripes)")
+      .select("user_id, role, joined_at, profiles(username,display_name,belt,stripes)")
       .eq("group_id", id);
     setMembers((m as unknown as Member[]) ?? []);
     const { data: s } = await sb.from("trainer_sessions")
@@ -700,7 +700,7 @@ function GroupDetailInner() {
       {/* ── INSIGHTS TAB ── */}
       {tab === "insights" && canCoach && (
         <div className="space-y-4">
-          <AttendanceOverview attendance={attendance} members={members} />
+          <GymInsights attendance={attendance} members={members} sessions={sessions} coachNotes={coachNotes} />
           <GroupInsights groupId={id as string} isTrainer={canCoach} memberCount={members.length} />
         </div>
       )}
@@ -726,51 +726,110 @@ function GroupDetailInner() {
   );
 }
 
-/* ── Attendance overview (coach retention tool) ── */
-function AttendanceOverview({ attendance, members }: {
+/* ── Gym Insights: the coach's command center (gym-only, check-in driven) ── */
+function GymInsights({ attendance, members, sessions, coachNotes }: {
   attendance: { trainer_session_id: string; user_id: string; date: string }[];
   members: Member[];
+  sessions: TrainerSession[];
+  coachNotes: Record<string, CoachNote>;
 }) {
   const now = new Date();
+  const monthKey = format(now, "yyyy-MM");
   const nameOf = (m: Member) => m.profiles?.display_name || m.profiles?.username || "?";
 
+  // ── KPIs (this month, from check-ins) ──
+  const thisMonth   = attendance.filter(a => a.date.startsWith(monthKey));
+  const checkinsMonth = thisMonth.length;
+  const classesHeld = new Set(thisMonth.map(a => a.trainer_session_id + a.date)).size;
+  const avgPerClass = classesHeld ? Math.round((checkinsMonth / classesHeld) * 10) / 10 : 0;
+  const activeMembers = new Set(thisMonth.map(a => a.user_id)).size;
+
+  // ── 6-month trend (attendance + new members) ──
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+    return { key: format(d, "yyyy-MM"), label: format(d, "MMM") };
+  });
+  const trend = months.map(mo => ({
+    ...mo,
+    checkins: attendance.filter(a => a.date.startsWith(mo.key)).length,
+    joined:   members.filter(m => (m.joined_at ?? "").startsWith(mo.key)).length,
+  }));
+  const trendMax  = Math.max(1, ...trend.map(t => t.checkins));
+  const growthMax = Math.max(1, ...trend.map(t => t.joined));
+
+  // ── Per-member stats ──
   const rows = members.map(m => {
-    const mine = attendance.filter(a => a.user_id === m.user_id);
-    const dates = mine.map(a => a.date).sort();
+    const dates = attendance.filter(a => a.user_id === m.user_id).map(a => a.date).sort();
     const last = dates.length ? dates[dates.length - 1] : null;
-    const last30 = mine.filter(a => differenceInDays(now, parseISO(a.date)) <= 30).length;
     const daysSince = last ? differenceInDays(now, parseISO(last)) : null;
-    return { m, last, last30, daysSince };
+    const last30 = dates.filter(d => differenceInDays(now, parseISO(d)) <= 30).length;
+    return { m, last, daysSince, last30, total: dates.length, weekly: Math.round((last30 / 4.3) * 10) / 10 };
   });
 
+  // Retention radar: previously-active members who slipped (most-active first)
   const atRisk = rows
-    .filter(r => r.daysSince === null || r.daysSince >= 14)
-    .sort((a, b) => (b.daysSince ?? 9999) - (a.daysSince ?? 9999));
-  const topActive = [...rows]
-    .filter(r => r.last30 > 0)
-    .sort((a, b) => b.last30 - a.last30)
+    .filter(r => r.total > 0 && (r.daysSince === null || r.daysSince >= 14))
+    .sort((a, b) => b.last30 - a.last30 || (b.daysSince ?? 0) - (a.daysSince ?? 0))
     .slice(0, 8);
+  const topActive = rows.filter(r => r.last30 > 0).sort((a, b) => b.last30 - a.last30).slice(0, 10);
+
+  // Class performance (last 30 days)
+  const classRows = sessions.map(s => ({
+    s,
+    c: attendance.filter(a => a.trainer_session_id === s.id && differenceInDays(now, parseISO(a.date)) <= 30).length,
+  })).sort((a, b) => b.c - a.c);
+  const classMax = Math.max(1, ...classRows.map(c => c.c));
+
+  // Promotion board: most consistent members + their belt + coach note
+  const promo = rows.filter(r => r.total > 0).sort((a, b) => b.total - a.total).slice(0, 8);
 
   return (
     <div className="space-y-4">
-      {/* At-risk / haven't been in */}
+      {/* ── KPI grid ── */}
+      <div className="grid grid-cols-2 gap-3">
+        <Kpi value={checkinsMonth} label="Check-ins this month" accent />
+        <Kpi value={activeMembers} label="Active members" />
+        <Kpi value={avgPerClass} label="Avg per class" />
+        <Kpi value={members.length} label="Total members" />
+      </div>
+
+      {/* ── Attendance trend ── */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Attendance · last 6 months</p>
+        <div className="flex items-end gap-2 h-28">
+          {trend.map(t => (
+            <div key={t.key} className="flex-1 flex flex-col items-center gap-1.5">
+              <span className="text-[10px] font-bold text-zinc-400 tabular-nums">{t.checkins}</span>
+              <div className="w-full bg-zinc-800 rounded-md overflow-hidden flex items-end" style={{ height: "100%" }}>
+                <div className="w-full bg-red-500/70 rounded-md" style={{ height: `${(t.checkins / trendMax) * 100}%` }} />
+              </div>
+              <span className="text-[10px] text-zinc-600">{t.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Retention radar ── */}
+      <div className="bg-zinc-900 border border-amber-500/20 rounded-2xl p-4 space-y-3">
         <div>
-          <p className="text-[11px] font-semibold text-amber-400 uppercase tracking-widest">Needs a check-in</p>
-          <p className="text-xs text-zinc-600">Members who haven't trained in 2+ weeks — reach out before they drop off</p>
+          <p className="text-[11px] font-semibold text-amber-400 uppercase tracking-widest">⚠ Retention radar</p>
+          <p className="text-xs text-zinc-600">Members who were training but haven't shown in 2+ weeks — reach out before they quit</p>
         </div>
         {atRisk.length === 0 ? (
-          <p className="text-xs text-zinc-500">Everyone's been on the mat recently 🔥</p>
+          <p className="text-xs text-zinc-500">Everyone active is still showing up 🔥</p>
         ) : (
           <div className="flex flex-col gap-2">
-            {atRisk.map(({ m, daysSince }) => (
+            {atRisk.map(({ m, daysSince, total }) => (
               <div key={m.user_id} className="flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
                   {nameOf(m)[0].toUpperCase()}
                 </div>
-                <p className="text-sm text-zinc-200 flex-1 min-w-0 truncate">{nameOf(m)}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-zinc-200 truncate">{nameOf(m)}</p>
+                  <p className="text-[10px] text-zinc-600">{total} total check-ins</p>
+                </div>
                 <span className="text-[11px] font-semibold text-amber-400 shrink-0">
-                  {daysSince === null ? "Never checked in" : `${daysSince}d ago`}
+                  {daysSince === null ? "Never" : `${daysSince}d ago`}
                 </span>
               </div>
             ))}
@@ -778,20 +837,23 @@ function AttendanceOverview({ attendance, members }: {
         )}
       </div>
 
-      {/* Most active */}
+      {/* ── Most active ── */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
         <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Most active · last 30 days</p>
         {topActive.length === 0 ? (
           <p className="text-xs text-zinc-500">No check-ins yet. Hang up the QR and let members scan in.</p>
         ) : (
           <div className="flex flex-col gap-2">
-            {topActive.map(({ m, last30 }, i) => (
+            {topActive.map(({ m, last30, weekly }, i) => (
               <div key={m.user_id} className="flex items-center gap-3">
                 <span className="w-5 text-center text-xs font-bold text-zinc-600">#{i + 1}</span>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
                   {nameOf(m)[0].toUpperCase()}
                 </div>
-                <p className="text-sm text-zinc-200 flex-1 min-w-0 truncate">{nameOf(m)}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-zinc-200 truncate">{nameOf(m)}</p>
+                  <p className="text-[10px] text-zinc-600">~{weekly}×/week</p>
+                </div>
                 <span className="text-sm font-bold tabular-nums text-zinc-100 shrink-0">{last30}</span>
                 <span className="text-[10px] text-zinc-600 shrink-0">classes</span>
               </div>
@@ -799,6 +861,77 @@ function AttendanceOverview({ attendance, members }: {
           </div>
         )}
       </div>
+
+      {/* ── Class performance ── */}
+      {classRows.length > 0 && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Class performance · last 30 days</p>
+          <div className="space-y-2">
+            {classRows.map(({ s, c }) => (
+              <div key={s.id} className="flex items-center gap-3">
+                <span className="text-xs text-zinc-400 w-28 truncate">{s.title}</span>
+                <div className="flex-1 h-2.5 bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full bg-blue-500/70" style={{ width: `${(c / classMax) * 100}%` }} />
+                </div>
+                <span className="text-xs font-semibold text-zinc-300 w-6 text-right">{c}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Member growth ── */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">New members · last 6 months</p>
+        <div className="flex items-end gap-2 h-24">
+          {trend.map(t => (
+            <div key={t.key} className="flex-1 flex flex-col items-center gap-1.5">
+              <span className="text-[10px] font-bold text-zinc-400 tabular-nums">{t.joined}</span>
+              <div className="w-full bg-zinc-800 rounded-md overflow-hidden flex items-end" style={{ height: "100%" }}>
+                <div className="w-full bg-emerald-500/70 rounded-md" style={{ height: `${(t.joined / growthMax) * 100}%` }} />
+              </div>
+              <span className="text-[10px] text-zinc-600">{t.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Promotion board ── */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Promotion board · most consistent</p>
+        {promo.length === 0 ? (
+          <p className="text-xs text-zinc-500">No attendance data yet.</p>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            {promo.map(({ m, total, last30 }) => {
+              const note = coachNotes[m.user_id]?.promotion?.trim();
+              return (
+                <div key={m.user_id} className="flex items-start gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border border-black/20 shrink-0 ${beltAvatar(m.profiles?.belt)}`}>
+                    {nameOf(m)[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-zinc-200 truncate">
+                      {nameOf(m)} <span className="text-[11px] text-zinc-500 capitalize">· {m.profiles?.belt} {m.profiles?.stripes ? `${m.profiles.stripes}★` : ""}</span>
+                    </p>
+                    {note ? <p className="text-[11px] text-amber-400/90">🥋 {note}</p>
+                          : <p className="text-[10px] text-zinc-600">{total} check-ins · {last30} last 30d</p>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Kpi({ value, label, accent }: { value: number; label: string; accent?: boolean }) {
+  return (
+    <div className={`rounded-2xl p-4 border ${accent ? "bg-red-950/20 border-red-500/30" : "bg-zinc-900 border-zinc-800"}`}>
+      <p className={`text-2xl font-black tabular-nums ${accent ? "text-red-400" : "text-zinc-100"}`}>{value}</p>
+      <p className="text-[11px] text-zinc-500 mt-0.5">{label}</p>
     </div>
   );
 }
