@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { ArrowLeft, MapPin, Navigation, CalendarDays, Loader2 } from "lucide-react";
+import { useAuthStore } from "@/store/useAuthStore";
+import { ArrowLeft, MapPin, Navigation, CalendarDays, Loader2, Check, Users } from "lucide-react";
 import { format } from "date-fns";
 
 interface OpenMat {
@@ -27,7 +28,10 @@ const RADII = [25, 50, 100, 250];
 
 export default function OpenMatsPage() {
   const sb = createClient();
+  const { user } = useAuthStore();
   const [mats, setMats]       = useState<OpenMat[]>([]);
+  const [counts, setCounts]   = useState<Record<string, number>>({});
+  const [mine, setMine]       = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [country, setCountry] = useState<string>("all");
   const [radius, setRadius]   = useState<number | null>(null);
@@ -37,11 +41,41 @@ export default function OpenMatsPage() {
 
   const today = format(new Date(), "yyyy-MM-dd");
 
+  const loadRsvps = async (ids: string[]) => {
+    if (ids.length === 0) { setCounts({}); setMine(new Set()); return; }
+    const { data } = await sb.from("open_mat_rsvps").select("open_mat_id, user_id").in("open_mat_id", ids);
+    const c: Record<string, number> = {};
+    const m = new Set<string>();
+    (data ?? []).forEach((r: any) => {
+      c[r.open_mat_id] = (c[r.open_mat_id] ?? 0) + 1;
+      if (r.user_id === user?.id) m.add(r.open_mat_id);
+    });
+    setCounts(c); setMine(m);
+  };
+
   useEffect(() => {
-    sb.from("open_mats").select("*").gte("date", today).order("date", { ascending: true })
-      .then(({ data }) => { setMats((data as OpenMat[]) ?? []); setLoading(false); });
+    (async () => {
+      const { data } = await sb.from("open_mats").select("*").gte("date", today).order("date", { ascending: true });
+      const rows = (data as OpenMat[]) ?? [];
+      setMats(rows);
+      await loadRsvps(rows.map(r => r.id));
+      setLoading(false);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
+
+  const toggleRsvp = async (id: string) => {
+    if (!user) return;
+    if (mine.has(id)) {
+      await sb.from("open_mat_rsvps").delete().eq("open_mat_id", id).eq("user_id", user.id);
+      setMine(prev => { const n = new Set(prev); n.delete(id); return n; });
+      setCounts(c => ({ ...c, [id]: Math.max(0, (c[id] ?? 1) - 1) }));
+    } else {
+      await sb.from("open_mat_rsvps").insert({ open_mat_id: id, user_id: user.id });
+      setMine(prev => new Set(prev).add(id));
+      setCounts(c => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
+    }
+  };
 
   const countries = useMemo(
     () => Array.from(new Set(mats.map(m => m.country).filter(Boolean))).sort() as string[],
@@ -150,6 +184,17 @@ export default function OpenMatsPage() {
                 {dist != null && (
                   <span className="text-[11px] font-semibold text-red-400 shrink-0">{Math.round(dist)} km</span>
                 )}
+              </div>
+              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-zinc-800">
+                <button onClick={() => toggleRsvp(m.id)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+                    mine.has(m.id) ? "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                  }`}>
+                  <Check size={13}/> {mine.has(m.id) ? "I'm going" : "I'll be there"}
+                </button>
+                <span className="text-[11px] text-zinc-500 flex items-center gap-1 shrink-0">
+                  <Users size={12}/> {counts[m.id] ?? 0} going
+                </span>
               </div>
             </div>
           ))}

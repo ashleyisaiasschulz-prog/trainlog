@@ -76,6 +76,7 @@ function GroupDetailInner() {
   const [occForm, setOccForm] = useState<{ focus: string; positions: string[] }>({ focus: "", positions: [] });
   const [expandedOcc, setExpandedOcc] = useState<string | null>(null);
   const [openMats, setOpenMats] = useState<OpenMat[]>([]);
+  const [omCounts, setOmCounts] = useState<Record<string, number>>({});
   const [addressInput, setAddressInput] = useState("");
   const [addressBusy, setAddressBusy] = useState(false);
   const [addressErr, setAddressErr] = useState("");
@@ -185,6 +186,13 @@ function GroupDetailInner() {
       .select("id,title,date,time,gi,notes").eq("group_id", id)
       .gte("date", format(new Date(), "yyyy-MM-dd")).order("date", { ascending: true });
     setOpenMats((oms as OpenMat[]) ?? []);
+    const omIds = (oms ?? []).map((o: any) => o.id);
+    if (omIds.length) {
+      const { data: omr } = await sb.from("open_mat_rsvps").select("open_mat_id").in("open_mat_id", omIds);
+      const c: Record<string, number> = {};
+      (omr ?? []).forEach((r: any) => { c[r.open_mat_id] = (c[r.open_mat_id] ?? 0) + 1; });
+      setOmCounts(c);
+    } else setOmCounts({});
   };
 
   useEffect(() => { load(); }, [user, id]);
@@ -767,7 +775,7 @@ function GroupDetailInner() {
                     <div key={om.id} className="flex items-center gap-2 bg-zinc-800/40 rounded-lg px-3 py-2">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-zinc-200 truncate">{om.title} <span className="text-[10px] text-zinc-500">{om.gi ? "Gi" : "No-Gi"}</span></p>
-                        <p className="text-[11px] text-zinc-500">{format(new Date(om.date+"T12:00:00"),"EEE, MMM d")}{om.time && ` · ${om.time.slice(0,5)}`}</p>
+                        <p className="text-[11px] text-zinc-500">{format(new Date(om.date+"T12:00:00"),"EEE, MMM d")}{om.time && ` · ${om.time.slice(0,5)}`} · {omCounts[om.id] ?? 0} going</p>
                       </div>
                       <button onClick={()=>deleteOpenMat(om.id)} className="text-zinc-700 hover:text-red-500 p-1 shrink-0"><Trash2 size={13}/></button>
                     </div>
