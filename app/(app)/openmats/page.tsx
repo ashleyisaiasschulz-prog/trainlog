@@ -6,6 +6,15 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { ArrowLeft, MapPin, Navigation, CalendarDays, Loader2, Check, Users } from "lucide-react";
 import { format } from "date-fns";
+import { BELT_COLORS, Belt } from "@/lib/types";
+
+interface Attendee { id: string; name: string; belt: string }
+
+function beltAvatar(belt?: string) {
+  const b = (belt ?? "white") as Belt;
+  const c = BELT_COLORS[b] ?? BELT_COLORS.white;
+  return `${c.bg} ${b === "white" ? "text-zinc-900" : "text-white"}`;
+}
 
 interface OpenMat {
   id: string; gym_name: string | null; title: string; date: string;
@@ -28,9 +37,10 @@ const RADII = [25, 50, 100, 250];
 
 export default function OpenMatsPage() {
   const sb = createClient();
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
   const [mats, setMats]       = useState<OpenMat[]>([]);
   const [counts, setCounts]   = useState<Record<string, number>>({});
+  const [attendees, setAttendees] = useState<Record<string, Attendee[]>>({});
   const [mine, setMine]       = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [country, setCountry] = useState<string>("all");
@@ -42,15 +52,25 @@ export default function OpenMatsPage() {
   const today = format(new Date(), "yyyy-MM-dd");
 
   const loadRsvps = async (ids: string[]) => {
-    if (ids.length === 0) { setCounts({}); setMine(new Set()); return; }
+    if (ids.length === 0) { setCounts({}); setMine(new Set()); setAttendees({}); return; }
     const { data } = await sb.from("open_mat_rsvps").select("open_mat_id, user_id").in("open_mat_id", ids);
+    const rows = data ?? [];
+    const uids = [...new Set(rows.map((r: any) => r.user_id))];
+    const profMap: Record<string, any> = {};
+    if (uids.length) {
+      const { data: profs } = await sb.from("profiles").select("id,username,display_name,belt").in("id", uids);
+      (profs ?? []).forEach((p: any) => { profMap[p.id] = p; });
+    }
     const c: Record<string, number> = {};
     const m = new Set<string>();
-    (data ?? []).forEach((r: any) => {
+    const by: Record<string, Attendee[]> = {};
+    rows.forEach((r: any) => {
       c[r.open_mat_id] = (c[r.open_mat_id] ?? 0) + 1;
       if (r.user_id === user?.id) m.add(r.open_mat_id);
+      const p = profMap[r.user_id];
+      (by[r.open_mat_id] ||= []).push({ id: r.user_id, name: p?.display_name || p?.username || "Someone", belt: p?.belt ?? "white" });
     });
-    setCounts(c); setMine(m);
+    setCounts(c); setMine(m); setAttendees(by);
   };
 
   useEffect(() => {
@@ -70,10 +90,13 @@ export default function OpenMatsPage() {
       await sb.from("open_mat_rsvps").delete().eq("open_mat_id", id).eq("user_id", user.id);
       setMine(prev => { const n = new Set(prev); n.delete(id); return n; });
       setCounts(c => ({ ...c, [id]: Math.max(0, (c[id] ?? 1) - 1) }));
+      setAttendees(a => ({ ...a, [id]: (a[id] ?? []).filter(x => x.id !== user.id) }));
     } else {
       await sb.from("open_mat_rsvps").insert({ open_mat_id: id, user_id: user.id });
       setMine(prev => new Set(prev).add(id));
       setCounts(c => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
+      const meChip: Attendee = { id: user.id, name: profile?.display_name || profile?.username || "You", belt: profile?.belt ?? "white" };
+      setAttendees(a => ({ ...a, [id]: [...(a[id] ?? []), meChip] }));
     }
   };
 
@@ -196,6 +219,18 @@ export default function OpenMatsPage() {
                   <Users size={12}/> {counts[m.id] ?? 0} going
                 </span>
               </div>
+              {(attendees[m.id]?.length ?? 0) > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                  {attendees[m.id].map(a => (
+                    <span key={a.id} className="inline-flex items-center gap-1 text-[11px] text-zinc-300 bg-zinc-800 px-2 py-0.5 rounded-md">
+                      <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold border border-black/20 ${beltAvatar(a.belt)}`}>
+                        {a.name[0].toUpperCase()}
+                      </span>
+                      {a.name}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
