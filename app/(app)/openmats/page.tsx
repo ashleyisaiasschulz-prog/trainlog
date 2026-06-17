@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
 import { ArrowLeft, MapPin, Navigation, CalendarDays, Loader2, Check, Users } from "lucide-react";
 import { format } from "date-fns";
@@ -37,6 +37,7 @@ const RADII = [25, 50, 100, 250];
 
 export default function OpenMatsPage() {
   const sb = createClient();
+  const router = useRouter();
   const { user, profile } = useAuthStore();
   const [mats, setMats]       = useState<OpenMat[]>([]);
   const [counts, setCounts]   = useState<Record<string, number>>({});
@@ -129,9 +130,9 @@ export default function OpenMatsPage() {
   return (
     <div className="px-4 pt-5 pb-28 space-y-4">
       <div className="flex items-center gap-3">
-        <Link href="/groups" className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 transition-colors">
+        <button onClick={() => router.back()} className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 transition-colors">
           <ArrowLeft size={18} />
-        </Link>
+        </button>
         <div>
           <h1 className="text-xl font-bold tracking-tight text-zinc-100">Open Mats</h1>
           <p className="text-[11px] text-zinc-500 mt-0.5">Find open mats near you</p>
