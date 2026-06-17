@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useTagStore } from "@/store/useTagStore";
 import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy, Loader2, Pencil } from "lucide-react";
 import Link from "next/link";
 import { DAY_NAMES_FULL, BELT_COLORS, Belt } from "@/lib/types";
@@ -31,6 +32,7 @@ interface TrainerSession {
   id: string; title: string; description: string | null; focus: string | null;
   date: string | null; time: string | null; duration: number | null;
   gi: boolean; recurring: boolean; day_of_week: number | null; active: boolean;
+  positions: string[] | null;
 }
 interface Rsvp { id: string; trainer_session_id: string; user_id: string; status: string; occurrence_date: string | null }
 interface Occurrence { session: TrainerSession; date: string; key: string }
@@ -68,7 +70,9 @@ function GroupDetailInner() {
   const [form, setForm] = useState({
     title: "", description: "", focus: "", date: format(new Date(), "yyyy-MM-dd"),
     time: "19:00", duration: 90, gi: true, recurring: false, day_of_week: 2,
+    positions: [] as string[],
   });
+  const positionTags = useTagStore((s) => s.positions);
 
   const isGym   = !!group?.is_gym;
   const isOwner = group?.trainer_id === user?.id;   // the group admin
@@ -239,6 +243,7 @@ function GroupDetailInner() {
     setForm({
       title: "", description: "", focus: "", date: format(new Date(), "yyyy-MM-dd"),
       time: "19:00", duration: 90, gi: true, recurring: false, day_of_week: 2,
+      positions: [],
     });
 
   const startCreate = () => { setEditingId(null); resetForm(); setShowForm(true); };
@@ -250,9 +255,13 @@ function GroupDetailInner() {
       date: s.date ?? format(new Date(), "yyyy-MM-dd"),
       time: (s.time ?? "19:00").slice(0, 5), duration: s.duration ?? 90, gi: s.gi,
       recurring: s.recurring, day_of_week: s.day_of_week ?? 2,
+      positions: s.positions ?? [],
     });
     setShowForm(true);
   };
+
+  const togglePosition = (p: string) =>
+    setForm(f => ({ ...f, positions: f.positions.includes(p) ? f.positions.filter(x => x !== p) : [...f.positions, p] }));
 
   const saveSession = async () => {
     if (!user || !form.title.trim()) return;
@@ -261,6 +270,7 @@ function GroupDetailInner() {
       date: form.recurring ? null : form.date,
       time: form.time, duration: form.duration, gi: form.gi,
       recurring: form.recurring, day_of_week: form.recurring ? form.day_of_week : null,
+      positions: form.positions,
     };
     if (editingId) {
       await sb.from("trainer_sessions").update(payload).eq("id", editingId);
@@ -376,8 +386,24 @@ function GroupDetailInner() {
                 placeholder="Session title (e.g. Guard Passing)"
                 className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600" />
               <textarea value={form.focus} onChange={e=>setForm(f=>({...f,focus:e.target.value}))}
-                placeholder="What will we work on? (focus / techniques)" rows={2}
+                placeholder="Notes (e.g. Single Leg X, Saddle entries)" rows={2}
                 className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 resize-none" />
+
+              {/* Positions drilled (coach-tagged → powers curriculum analytics) */}
+              <div>
+                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Positions drilled</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {positionTags.map(p => {
+                    const on = form.positions.includes(p);
+                    return (
+                      <button key={p} type="button" onClick={()=>togglePosition(p)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+                          on ? "bg-red-500/15 text-red-400 ring-1 ring-red-500/30" : "bg-zinc-800/60 text-zinc-400"
+                        }`}>{p}</button>
+                    );
+                  })}
+                </div>
+              </div>
 
               {/* Recurring toggle */}
               <button type="button" onClick={()=>setForm(f=>({...f,recurring:!f.recurring}))}
@@ -780,6 +806,35 @@ function GymInsights({ attendance, members, sessions, coachNotes }: {
   })).sort((a, b) => b.c - a.c);
   const classMax = Math.max(1, ...classRows.map(c => c.c));
 
+  // ── Curriculum (coach-tagged positions, last 8 weeks, weighted by occurrences) ──
+  const todayStr = format(now, "yyyy-MM-dd");
+  const start = new Date(now); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - 55);
+  const startStr = format(start, "yyyy-MM-dd");
+  const currMap: Record<string, { count: number; last: string }> = {};
+  for (const s of sessions) {
+    const ps = s.positions ?? [];
+    if (ps.length === 0) continue;
+    const dates: string[] = [];
+    if (s.recurring && s.day_of_week != null) {
+      const d = new Date(start);
+      while (d <= now) {
+        if (d.getDay() === s.day_of_week) dates.push(format(d, "yyyy-MM-dd"));
+        d.setDate(d.getDate() + 1);
+      }
+    } else if (s.date && s.date >= startStr && s.date <= todayStr) {
+      dates.push(s.date);
+    }
+    for (const ds of dates) for (const p of ps) {
+      if (!currMap[p]) currMap[p] = { count: 0, last: ds };
+      currMap[p].count++;
+      if (ds > currMap[p].last) currMap[p].last = ds;
+    }
+  }
+  const curriculum = Object.entries(currMap)
+    .map(([pos, v]) => ({ pos, count: v.count, daysAgo: differenceInDays(now, parseISO(v.last)) }))
+    .sort((a, b) => b.count - a.count);
+  const currMax = Math.max(1, ...curriculum.map(c => c.count));
+
   // Promotion board: most consistent members + their belt + coach note
   const promo = rows.filter(r => r.total > 0).sort((a, b) => b.total - a.total).slice(0, 8);
 
@@ -879,6 +934,32 @@ function GymInsights({ attendance, members, sessions, coachNotes }: {
           </div>
         </div>
       )}
+
+      {/* ── Curriculum (what we've drilled) ── */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+        <div>
+          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Curriculum · last 8 weeks</p>
+          <p className="text-xs text-zinc-600">What you've drilled most — tag positions when scheduling a class</p>
+        </div>
+        {curriculum.length === 0 ? (
+          <p className="text-xs text-zinc-500">No positions tagged yet. Add them when creating or editing a class.</p>
+        ) : (
+          <div className="space-y-2">
+            {curriculum.map(({ pos, count, daysAgo }) => (
+              <div key={pos} className="flex items-center gap-3">
+                <span className="text-xs text-zinc-400 w-28 truncate">{pos}</span>
+                <div className="flex-1 h-2.5 bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full bg-red-500/70" style={{ width: `${(count / currMax) * 100}%` }} />
+                </div>
+                <span className="text-xs font-semibold text-zinc-300 w-5 text-right">{count}</span>
+                <span className={`text-[10px] w-16 text-right shrink-0 ${daysAgo >= 21 ? "text-amber-400" : "text-zinc-600"}`}>
+                  {daysAgo === 0 ? "today" : `${daysAgo}d ago`}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* ── Member growth ── */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
