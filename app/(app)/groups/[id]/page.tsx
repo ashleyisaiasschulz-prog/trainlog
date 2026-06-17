@@ -25,6 +25,10 @@ interface Group {
   id: string; name: string; description: string | null;
   gym: string | null; trainer_id: string; invite_code: string;
   max_coaches?: number | null; is_gym?: boolean | null;
+  address?: string | null; country?: string | null; lat?: number | null; lng?: number | null;
+}
+interface OpenMat {
+  id: string; title: string; date: string; time: string | null; gi: boolean; notes: string | null;
 }
 interface MiniProfile { username: string; display_name: string | null; belt: string; stripes: number }
 interface Member { user_id: string; role: string; joined_at?: string | null; profiles: MiniProfile }
@@ -71,6 +75,12 @@ function GroupDetailInner() {
   const [editingOcc, setEditingOcc] = useState<string | null>(null);
   const [occForm, setOccForm] = useState<{ focus: string; positions: string[] }>({ focus: "", positions: [] });
   const [expandedOcc, setExpandedOcc] = useState<string | null>(null);
+  const [openMats, setOpenMats] = useState<OpenMat[]>([]);
+  const [addressInput, setAddressInput] = useState("");
+  const [addressBusy, setAddressBusy] = useState(false);
+  const [addressErr, setAddressErr] = useState("");
+  const [showOmForm, setShowOmForm] = useState(false);
+  const [omForm, setOmForm] = useState({ title: "Open Mat", date: format(new Date(), "yyyy-MM-dd"), time: "11:00", gi: false, notes: "" });
   const [form, setForm] = useState({
     title: "", description: "", focus: "", date: format(new Date(), "yyyy-MM-dd"),
     time: "19:00", duration: 90, gi: true, recurring: false, day_of_week: 2,
@@ -168,6 +178,11 @@ function GroupDetailInner() {
     const om: Record<string, { focus: string | null; positions: string[] }> = {};
     (socc ?? []).forEach((o: any) => { om[`${o.trainer_session_id}-${o.date}`] = { focus: o.focus, positions: o.positions ?? [] }; });
     setOccOverrides(om);
+    // This gym's upcoming open mats
+    const { data: oms } = await sb.from("open_mats")
+      .select("id,title,date,time,gi,notes").eq("group_id", id)
+      .gte("date", format(new Date(), "yyyy-MM-dd")).order("date", { ascending: true });
+    setOpenMats((oms as OpenMat[]) ?? []);
   };
 
   useEffect(() => { load(); }, [user, id]);
@@ -179,6 +194,8 @@ function GroupDetailInner() {
     tabInitRef.current = true;
     if (group.is_gym) setTab("sessions");
   }, [group]);
+
+  useEffect(() => { if (group) setAddressInput(group.address ?? ""); }, [group?.address]);
 
   // Realtime: refresh RSVPs + attendance when they change
   useEffect(() => {
@@ -267,6 +284,39 @@ function GroupDetailInner() {
       { onConflict: "trainer_session_id,date" }
     );
     setEditingOcc(null);
+    await load();
+  };
+
+  const saveAddress = async () => {
+    if (!addressInput.trim()) return;
+    setAddressBusy(true); setAddressErr("");
+    try {
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(addressInput.trim())}`);
+      const geo = await res.json();
+      if (!res.ok) { setAddressErr(geo.error ?? "Couldn't find that address"); setAddressBusy(false); return; }
+      const { error } = await sb.from("groups").update({
+        address: addressInput.trim(), country: geo.country, lat: geo.lat, lng: geo.lng,
+      }).eq("id", id);
+      if (error) { setAddressErr(error.message); setAddressBusy(false); return; }
+      await load();
+    } catch { setAddressErr("Network error"); }
+    setAddressBusy(false);
+  };
+
+  const createOpenMat = async () => {
+    if (!user || !group?.lat || !omForm.title.trim()) return;
+    await sb.from("open_mats").insert({
+      group_id: id, gym_name: group.name, title: omForm.title, date: omForm.date,
+      time: omForm.time, gi: omForm.gi, notes: omForm.notes || null,
+      address: group.address, country: group.country, lat: group.lat, lng: group.lng,
+    });
+    setShowOmForm(false);
+    setOmForm(f => ({ ...f, notes: "" }));
+    await load();
+  };
+
+  const deleteOpenMat = async (mid: string) => {
+    await sb.from("open_mats").delete().eq("id", mid);
     await load();
   };
 
@@ -634,6 +684,82 @@ function GroupDetailInner() {
               </div>
             );
           })()}
+
+          {/* ── OPEN MATS (coach) ── */}
+          {canCoach && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3 mt-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Open Mats · public</p>
+                <Link href="/openmats" className="text-[11px] text-zinc-500 hover:text-zinc-300">Browse all →</Link>
+              </div>
+              <p className="text-xs text-zinc-600 -mt-1">Post a public open mat so anyone can find it by country or distance.</p>
+
+              {/* Gym address (needed for the map/distance filter) */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Gym address</p>
+                <div className="flex gap-2">
+                  <input value={addressInput} onChange={e=>setAddressInput(e.target.value)}
+                    placeholder="Street, City, Country"
+                    className="flex-1 bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600" />
+                  <button onClick={saveAddress} disabled={addressBusy || !addressInput.trim()}
+                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold px-4 rounded-xl text-sm disabled:opacity-40 flex items-center gap-1.5">
+                    {addressBusy ? <Loader2 size={14} className="animate-spin" /> : "Save"}
+                  </button>
+                </div>
+                {addressErr && <p className="text-xs text-red-400">{addressErr}</p>}
+                {group.lat != null && <p className="text-[11px] text-emerald-400">📍 Location set{group.country ? ` · ${group.country}` : ""}</p>}
+              </div>
+
+              {/* Create open mat */}
+              {group.lat == null ? (
+                <p className="text-[11px] text-zinc-600">Set your gym address first to post an open mat.</p>
+              ) : !showOmForm ? (
+                <button onClick={()=>setShowOmForm(true)}
+                  className="w-full bg-red-600 hover:bg-red-500 text-white font-semibold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
+                  <Plus size={15}/> Post open mat
+                </button>
+              ) : (
+                <div className="space-y-2 bg-zinc-800/40 rounded-xl p-3">
+                  <input value={omForm.title} onChange={e=>setOmForm(f=>({...f,title:e.target.value}))}
+                    placeholder="Title (e.g. Sunday Open Mat)"
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-600" />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input type="date" value={omForm.date} onChange={e=>setOmForm(f=>({...f,date:e.target.value}))}
+                      className="bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-600" />
+                    <input type="time" value={omForm.time} onChange={e=>setOmForm(f=>({...f,time:e.target.value}))}
+                      className="bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-600" />
+                    <button type="button" onClick={()=>setOmForm(f=>({...f,gi:!f.gi}))}
+                      className={`rounded-lg text-sm font-semibold ${omForm.gi ? "bg-blue-500/15 text-blue-400" : "bg-violet-500/15 text-violet-400"}`}>
+                      {omForm.gi ? "Gi" : "No-Gi"}
+                    </button>
+                  </div>
+                  <textarea value={omForm.notes} onChange={e=>setOmForm(f=>({...f,notes:e.target.value}))}
+                    placeholder="Notes (optional) — drop-in fee, who's welcome…" rows={2}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 resize-none" />
+                  <div className="flex gap-2">
+                    <button onClick={()=>setShowOmForm(false)} className="flex-1 py-2 rounded-lg bg-zinc-800 text-zinc-400 text-xs font-semibold">Cancel</button>
+                    <button onClick={createOpenMat} disabled={!omForm.title.trim()}
+                      className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-semibold disabled:opacity-30">Post</button>
+                  </div>
+                </div>
+              )}
+
+              {/* This gym's upcoming open mats */}
+              {openMats.length > 0 && (
+                <div className="flex flex-col gap-1.5 pt-1">
+                  {openMats.map(om => (
+                    <div key={om.id} className="flex items-center gap-2 bg-zinc-800/40 rounded-lg px-3 py-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-zinc-200 truncate">{om.title} <span className="text-[10px] text-zinc-500">{om.gi ? "Gi" : "No-Gi"}</span></p>
+                        <p className="text-[11px] text-zinc-500">{format(new Date(om.date+"T12:00:00"),"EEE, MMM d")}{om.time && ` · ${om.time.slice(0,5)}`}</p>
+                      </div>
+                      <button onClick={()=>deleteOpenMat(om.id)} className="text-zinc-700 hover:text-red-500 p-1 shrink-0"><Trash2 size={13}/></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

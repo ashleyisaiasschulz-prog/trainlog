@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useGymStore } from "@/store/useGymStore";
-import { Building2, Plus, LogIn, ChevronRight, Hash, Crown, Loader2 } from "lucide-react";
+import { Building2, Plus, LogIn, ChevronRight, Hash, Crown, Loader2, MapPin } from "lucide-react";
 import Link from "next/link";
 
 interface Group {
@@ -139,6 +139,10 @@ function GymsInner() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold tracking-tight text-zinc-100">Gym</h1>
         <div className="flex gap-2">
+          <Link href="/openmats"
+            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold px-3 py-2 rounded-xl text-sm transition-colors flex items-center gap-1.5">
+            <MapPin size={14}/> Open Mats
+          </Link>
           <button onClick={() => { setShowJoin(v=>!v); setShowCreate(false); setError(""); }}
             className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold px-3 py-2 rounded-xl text-sm transition-colors flex items-center gap-1.5">
             <Hash size={14}/> Join
