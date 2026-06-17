@@ -701,7 +701,7 @@ function GroupDetailInner() {
       {tab === "insights" && canCoach && (
         <div className="space-y-4">
           <GymInsights attendance={attendance} members={members} sessions={sessions} coachNotes={coachNotes} />
-          <GroupInsights groupId={id as string} isTrainer={canCoach} memberCount={members.length} />
+          <GroupInsights groupId={id as string} isTrainer={canCoach} />
         </div>
       )}
 
@@ -1150,7 +1150,7 @@ function GroupChat({ groupId, userId, nameOf }: { groupId: string; userId: strin
 /* ── Trainer insights: aggregate positions & submissions from members ── */
 interface InsightRow { kind: string; name: string; count: number }
 
-function GroupInsights({ groupId, memberCount, isTrainer }: { groupId: string; isTrainer: boolean; memberCount: number }) {
+function GroupInsights({ groupId, isTrainer }: { groupId: string; isTrainer: boolean }) {
   const sb = createClient();
   const [rows, setRows] = useState<InsightRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1200,17 +1200,6 @@ function GroupInsights({ groupId, memberCount, isTrainer }: { groupId: string; i
 
   return (
     <div className="space-y-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 grid grid-cols-2 gap-3 text-center">
-        <div className="bg-zinc-800/60 rounded-xl p-3">
-          <p className="text-2xl font-bold text-zinc-100">{memberCount}</p>
-          <p className="text-[11px] text-zinc-500 mt-0.5">Members</p>
-        </div>
-        <div className="bg-zinc-800/60 rounded-xl p-3">
-          <p className="text-2xl font-bold text-zinc-100">{positions.reduce((a,r)=>a+r.count,0)}</p>
-          <p className="text-[11px] text-zinc-500 mt-0.5">Positions logged</p>
-        </div>
-      </div>
-
       {loading ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center text-sm text-zinc-500">Loading insights…</div>
       ) : !hasData ? (
