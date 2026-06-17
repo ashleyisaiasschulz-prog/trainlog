@@ -249,13 +249,11 @@ function GroupDetailInner() {
     return out;
   };
 
-  // Effective per-date plan: occurrence override falls back to the template.
+  // Per-date plan — each occurrence (incl. weekly) has its own positions/notes.
   const effPositions = (s: TrainerSession, date: string) =>
-    occOverrides[`${s.id}-${date}`]?.positions ?? s.positions ?? [];
-  const effFocus = (s: TrainerSession, date: string) => {
-    const o = occOverrides[`${s.id}-${date}`];
-    return o ? o.focus : s.focus;
-  };
+    occOverrides[`${s.id}-${date}`]?.positions ?? [];
+  const effFocus = (s: TrainerSession, date: string) =>
+    occOverrides[`${s.id}-${date}`]?.focus ?? null;
 
   const startOccEdit = (s: TrainerSession, date: string) => {
     setEditingOcc(`${s.id}-${date}`);
@@ -293,17 +291,13 @@ function GroupDetailInner() {
     setShowForm(true);
   };
 
-  const togglePosition = (p: string) =>
-    setForm(f => ({ ...f, positions: f.positions.includes(p) ? f.positions.filter(x => x !== p) : [...f.positions, p] }));
-
   const saveSession = async () => {
     if (!user || !form.title.trim()) return;
     const payload = {
-      title: form.title, description: form.description, focus: form.focus,
+      title: form.title, description: form.description,
       date: form.recurring ? null : form.date,
       time: form.time, duration: form.duration, gi: form.gi,
       recurring: form.recurring, day_of_week: form.recurring ? form.day_of_week : null,
-      positions: form.positions,
     };
     if (editingId) {
       await sb.from("trainer_sessions").update(payload).eq("id", editingId);
@@ -418,25 +412,7 @@ function GroupDetailInner() {
               <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))}
                 placeholder="Session title (e.g. Guard Passing)"
                 className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600" />
-              <textarea value={form.focus} onChange={e=>setForm(f=>({...f,focus:e.target.value}))}
-                placeholder="Notes (e.g. Single Leg X, Saddle entries)" rows={2}
-                className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 resize-none" />
-
-              {/* Positions drilled (coach-tagged → powers curriculum analytics) */}
-              <div>
-                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Default positions <span className="text-zinc-600 normal-case">· editable per day</span></p>
-                <div className="flex flex-wrap gap-1.5">
-                  {positionTags.map(p => {
-                    const on = form.positions.includes(p);
-                    return (
-                      <button key={p} type="button" onClick={()=>togglePosition(p)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
-                          on ? "bg-red-500/15 text-red-400 ring-1 ring-red-500/30" : "bg-zinc-800/60 text-zinc-400"
-                        }`}>{p}</button>
-                    );
-                  })}
-                </div>
-              </div>
+              <p className="text-[11px] text-zinc-600">Positions &amp; notes are set per day on each class below (🎯 Plan this day).</p>
 
               {/* Recurring toggle */}
               <button type="button" onClick={()=>setForm(f=>({...f,recurring:!f.recurring}))}
@@ -912,8 +888,8 @@ function GymInsights({ attendance, members, sessions, coachNotes, occOverrides }
     }
     for (const ds of dates) {
       if (!happened(s, ds)) continue;
-      // Effective positions for this specific date (override → template)
-      const ps = occOverrides[`${s.id}-${ds}`]?.positions ?? s.positions ?? [];
+      // Per-date positions (only what was actually planned for that day)
+      const ps = occOverrides[`${s.id}-${ds}`]?.positions ?? [];
       for (const p of ps) {
         if (!currMap[p]) currMap[p] = { count: 0, last: ds };
         currMap[p].count++;
