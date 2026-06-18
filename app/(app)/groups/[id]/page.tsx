@@ -305,9 +305,10 @@ function GroupDetailInner() {
     return out;
   };
 
-  // Per-date plan — each occurrence (incl. weekly) has its own positions/notes.
+  // Effective per-date plan: a day's override falls back to the class default
+  // (positions set when creating the session). Notes are per-day only.
   const effPositions = (s: TrainerSession, date: string) =>
-    occOverrides[`${s.id}-${date}`]?.positions ?? [];
+    occOverrides[`${s.id}-${date}`]?.positions ?? s.positions ?? [];
   const effFocus = (s: TrainerSession, date: string) =>
     occOverrides[`${s.id}-${date}`]?.focus ?? null;
 
@@ -396,6 +397,9 @@ function GroupDetailInner() {
     setShowForm(true);
   };
 
+  const togglePosition = (p: string) =>
+    setForm(f => ({ ...f, positions: f.positions.includes(p) ? f.positions.filter(x => x !== p) : [...f.positions, p] }));
+
   const saveSession = async () => {
     if (!user || !form.title.trim()) return;
     const payload = {
@@ -403,6 +407,7 @@ function GroupDetailInner() {
       date: form.recurring ? null : form.date,
       time: form.time, duration: form.duration, gi: form.gi,
       recurring: form.recurring, day_of_week: form.recurring ? form.day_of_week : null,
+      positions: form.positions,
     };
     if (editingId) {
       await sb.from("trainer_sessions").update(payload).eq("id", editingId);
@@ -518,7 +523,21 @@ function GroupDetailInner() {
               <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))}
                 placeholder="Session title (e.g. Guard Passing)"
                 className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600" />
-              <p className="text-[11px] text-zinc-600">Positions &amp; notes are set per day on each class below (🎯 Plan this day).</p>
+              {/* Positions drilled (default for every occurrence; editable per day) */}
+              <div>
+                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Positions <span className="text-zinc-600 normal-case">· default, editable per day</span></p>
+                <div className="flex flex-wrap gap-1.5">
+                  {positionTags.map(p => {
+                    const on = form.positions.includes(p);
+                    return (
+                      <button key={p} type="button" onClick={()=>togglePosition(p)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+                          on ? "bg-red-500/15 text-red-400 ring-1 ring-red-500/30" : "bg-zinc-800/60 text-zinc-400"
+                        }`}>{p}</button>
+                    );
+                  })}
+                </div>
+              </div>
 
               {/* Recurring toggle */}
               <button type="button" onClick={()=>setForm(f=>({...f,recurring:!f.recurring}))}
@@ -1128,8 +1147,8 @@ function GymInsights({ attendance, members, sessions, coachNotes, occOverrides }
     }
     for (const ds of dates) {
       if (!happened(s, ds)) continue;
-      // Per-date positions (only what was actually planned for that day)
-      const ps = occOverrides[`${s.id}-${ds}`]?.positions ?? [];
+      // Effective positions for that day (override → class default)
+      const ps = occOverrides[`${s.id}-${ds}`]?.positions ?? s.positions ?? [];
       for (const p of ps) {
         if (!currMap[p]) currMap[p] = { count: 0, last: ds };
         currMap[p].count++;
@@ -1562,9 +1581,12 @@ function GroupInsights({ groupId, isTrainer }: { groupId: string; isTrainer: boo
   const byKind = (k: string) =>
     rows.filter(r => r.kind === k).sort((a, b) => b.count - a.count).slice(0, 6);
 
-  const positions    = byKind("position");
-  const subsGiven     = byKind("sub_given");
-  const subsReceived  = byKind("sub_received");
+  const subsGiven       = byKind("sub_given");
+  const subsReceived    = byKind("sub_received");
+  const sweepsGiven     = byKind("sweep_given");
+  const sweepsReceived  = byKind("sweep_received");
+  const escapesGiven    = byKind("escape_given");
+  const escapesReceived = byKind("escape_received");
   const maxOf = (arr: InsightRow[]) => Math.max(1, ...arr.map(r => r.count));
 
   const Bars = ({ data, color }: { data: InsightRow[]; color: string }) => {
@@ -1584,7 +1606,8 @@ function GroupInsights({ groupId, isTrainer }: { groupId: string; isTrainer: boo
     );
   };
 
-  const hasData = positions.length || subsGiven.length || subsReceived.length;
+  const hasData = subsGiven.length || subsReceived.length || sweepsGiven.length ||
+    sweepsReceived.length || escapesGiven.length || escapesReceived.length;
 
   return (
     <div className="space-y-4">
@@ -1597,12 +1620,6 @@ function GroupInsights({ groupId, isTrainer }: { groupId: string; isTrainer: boo
         </div>
       ) : (
         <>
-          {positions.length > 0 && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
-              <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Most Trained Positions</p>
-              <Bars data={positions} color="#ef4444" />
-            </div>
-          )}
           {subsGiven.length > 0 && (
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
               <p className="text-[11px] font-semibold text-emerald-500 uppercase tracking-widest">Strongest Submissions</p>
@@ -1611,8 +1628,32 @@ function GroupInsights({ groupId, isTrainer }: { groupId: string; isTrainer: boo
           )}
           {subsReceived.length > 0 && (
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
-              <p className="text-[11px] font-semibold text-red-500 uppercase tracking-widest">Weakest Areas (most tapped by)</p>
+              <p className="text-[11px] font-semibold text-red-500 uppercase tracking-widest">Weakest Submissions (most tapped by)</p>
               <Bars data={subsReceived} color="#f87171" />
+            </div>
+          )}
+          {sweepsGiven.length > 0 && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+              <p className="text-[11px] font-semibold text-blue-400 uppercase tracking-widest">Best Sweeps (landed)</p>
+              <Bars data={sweepsGiven} color="#3b82f6" />
+            </div>
+          )}
+          {sweepsReceived.length > 0 && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+              <p className="text-[11px] font-semibold text-amber-400 uppercase tracking-widest">Swept By (most)</p>
+              <Bars data={sweepsReceived} color="#f59e0b" />
+            </div>
+          )}
+          {escapesGiven.length > 0 && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+              <p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest">Best Escapes</p>
+              <Bars data={escapesGiven} color="#8b5cf6" />
+            </div>
+          )}
+          {escapesReceived.length > 0 && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+              <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest">Couldn't Escape (most)</p>
+              <Bars data={escapesReceived} color="#a1a1aa" />
             </div>
           )}
         </>
