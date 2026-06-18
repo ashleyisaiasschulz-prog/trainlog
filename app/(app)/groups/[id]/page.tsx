@@ -77,6 +77,7 @@ function GroupDetailInner() {
   const [expandedOcc, setExpandedOcc] = useState<string | null>(null);
   const [openMats, setOpenMats] = useState<OpenMat[]>([]);
   const [omCounts, setOmCounts] = useState<Record<string, number>>({});
+  const [joinReqs, setJoinReqs] = useState<{ user_id: string; profiles: MiniProfile }[]>([]);
   const [addressInput, setAddressInput] = useState("");
   const [addressBusy, setAddressBusy] = useState(false);
   const [addressErr, setAddressErr] = useState("");
@@ -193,6 +194,19 @@ function GroupDetailInner() {
       (omr ?? []).forEach((r: any) => { c[r.open_mat_id] = (c[r.open_mat_id] ?? 0) + 1; });
       setOmCounts(c);
     } else setOmCounts({});
+    // Pending join requests (RLS returns rows only to coaches/owner)
+    const { data: jr } = await sb.from("join_requests")
+      .select("user_id, profiles(username,display_name,belt,stripes)").eq("group_id", id);
+    setJoinReqs((jr as unknown as { user_id: string; profiles: MiniProfile }[]) ?? []);
+  };
+
+  const approveJoin = async (uid: string) => {
+    await sb.rpc("approve_join", { p_group: id, p_user: uid });
+    await load();
+  };
+  const denyJoin = async (uid: string) => {
+    await sb.rpc("deny_join", { p_group: id, p_user: uid });
+    await load();
   };
 
   useEffect(() => { load(); }, [user, id]);
@@ -838,6 +852,34 @@ function GroupDetailInner() {
       {/* ── MEMBERS TAB ── */}
       {tab === "members" && (
         <div className="space-y-4">
+          {/* Pending join requests (coach approves) */}
+          {canCoach && joinReqs.length > 0 && (
+            <div className="bg-zinc-900 border border-amber-500/20 rounded-2xl p-4 space-y-2">
+              <p className="text-[11px] font-semibold text-amber-400 uppercase tracking-widest">
+                Join requests <span className="ml-1">{joinReqs.length}</span>
+              </p>
+              {joinReqs.map(r => (
+                <div key={r.user_id} className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border border-black/20 ${beltAvatar(r.profiles?.belt)}`}>
+                    {(r.profiles?.display_name || r.profiles?.username || "?")[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-zinc-100">@{r.profiles?.username}</p>
+                    <p className="text-xs text-zinc-500 capitalize">{r.profiles?.belt} belt</p>
+                  </div>
+                  <button onClick={() => approveJoin(r.user_id)}
+                    className="w-8 h-8 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg flex items-center justify-center transition-colors">
+                    <Check size={15}/>
+                  </button>
+                  <button onClick={() => denyJoin(r.user_id)}
+                    className="w-8 h-8 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg flex items-center justify-center transition-colors">
+                    <X size={15}/>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Admin (free) / Coaches (gym) */}
           <div>
             <div className="flex items-center justify-between mb-2">

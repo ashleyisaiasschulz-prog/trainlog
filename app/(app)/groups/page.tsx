@@ -102,15 +102,22 @@ function GymsInner() {
     setLoading(false);
   };
 
+  const [joinMsg, setJoinMsg] = useState("");
+
   const joinGym = async () => {
     if (!user || !code.trim()) return;
-    setError("");
-    const { data: result, error: err } = await sb.rpc("join_group", { p_code: code.trim() });
+    setError(""); setJoinMsg("");
+    const { data: result, error: err } = await sb.rpc("request_join", { p_code: code.trim() });
     if (err) { setError(err.message); return; }
     if (result === "not_found")      { setError("Invalid invite code"); return; }
     if (result === "already_member") { setError("You're already in this gym"); return; }
-    setCode(""); setShowJoin(false);
-    await loadGyms();
+    setCode("");
+    if (result === "requested") {
+      setJoinMsg("Request sent — a coach will approve you shortly.");
+    } else {
+      setShowJoin(false);
+      await loadGyms();
+    }
   };
 
   if (!user) {
@@ -165,6 +172,7 @@ function GymsInner() {
             </button>
           </div>
           {error && <p className="text-xs text-red-400">{error}</p>}
+          {joinMsg && <p className="text-xs text-emerald-400">{joinMsg}</p>}
         </div>
       )}
 

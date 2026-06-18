@@ -360,7 +360,7 @@ function SocialGroups() {
   const join = async () => {
     if (!user || !code.trim()) return;
     setError("");
-    const { data: result, error: err } = await sb.rpc("join_group", { p_code: code.trim() });
+    const { data: result, error: err } = await sb.rpc("request_join", { p_code: code.trim() });
     if (err) { setError(err.message); return; }
     if (result === "not_found")      { setError("Invalid invite code"); return; }
     if (result === "already_member") { setError("You're already in this group"); return; }
