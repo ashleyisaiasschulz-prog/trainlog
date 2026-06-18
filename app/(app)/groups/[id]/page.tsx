@@ -78,6 +78,8 @@ function GroupDetailInner() {
   const [openMats, setOpenMats] = useState<OpenMat[]>([]);
   const [omCounts, setOmCounts] = useState<Record<string, number>>({});
   const [joinReqs, setJoinReqs] = useState<{ user_id: string; profiles: MiniProfile }[]>([]);
+  const [noteEntries, setNoteEntries] = useState<Record<string, { id: string; text: string; created_at: string }[]>>({});
+  const [newNoteText, setNewNoteText] = useState("");
   const [addressInput, setAddressInput] = useState("");
   const [addressBusy, setAddressBusy] = useState(false);
   const [addressErr, setAddressErr] = useState("");
@@ -198,6 +200,26 @@ function GroupDetailInner() {
     const { data: jr } = await sb.from("join_requests")
       .select("user_id, profiles(username,display_name,belt,stripes)").eq("group_id", id);
     setJoinReqs((jr as unknown as { user_id: string; profiles: MiniProfile }[]) ?? []);
+    // Dated coach note entries (RLS: coaches only)
+    const { data: ne } = await sb.from("coach_note_entries")
+      .select("id, student_id, text, created_at").eq("group_id", id)
+      .order("created_at", { ascending: false });
+    const nm: Record<string, { id: string; text: string; created_at: string }[]> = {};
+    (ne ?? []).forEach((n: any) => { (nm[n.student_id] ||= []).push({ id: n.id, text: n.text, created_at: n.created_at }); });
+    setNoteEntries(nm);
+  };
+
+  const addNoteEntry = async (studentId: string) => {
+    if (!user || !newNoteText.trim()) return;
+    await sb.from("coach_note_entries").insert({
+      group_id: id, student_id: studentId, author_id: user.id, text: newNoteText.trim(),
+    });
+    setNewNoteText("");
+    await load();
+  };
+  const deleteNoteEntry = async (entryId: string) => {
+    await sb.from("coach_note_entries").delete().eq("id", entryId);
+    await load();
   };
 
   const approveJoin = async (uid: string) => {
@@ -944,11 +966,19 @@ function GroupDetailInner() {
             <div className="flex flex-col gap-2">
               {students.map(m => {
                 const note = coachNotes[m.user_id];
-                const hasNote = !!note && (note.general.trim() || note.promotion.trim());
+                const entries = noteEntries[m.user_id] ?? [];
                 const open = editingNote === m.user_id;
+                const promo = note?.promotion?.trim();
                 return (
                 <div key={m.user_id} className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3">
-                  <div className="flex items-center gap-3">
+                  {/* Row — tap to open actions */}
+                  <button onClick={() => {
+                      const next = open ? null : m.user_id;
+                      setEditingNote(next);
+                      setNewNoteText("");
+                      if (next) setNoteForm(note ?? { general: "", promotion: "" });
+                    }}
+                    className="w-full flex items-center gap-3 text-left">
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
                       {(m.profiles?.display_name || m.profiles?.username || "?")[0].toUpperCase()}
                     </div>
@@ -956,55 +986,74 @@ function GroupDetailInner() {
                       <p className="text-sm font-semibold text-zinc-100">@{m.profiles?.username}</p>
                       <p className="text-xs text-zinc-500 capitalize">{m.profiles?.belt} belt · {m.profiles?.stripes} stripes</p>
                     </div>
-                    {/* Coach: open notes (gym only) */}
-                    {canCoach && (
-                      <button onClick={() => { setEditingNote(open ? null : m.user_id); setNoteForm(note ?? { general: "", promotion: "" }); }}
-                        className={`text-[10px] font-semibold transition-colors shrink-0 ${hasNote ? "text-amber-400 hover:text-amber-300" : "text-zinc-500 hover:text-zinc-300"}`}>
-                        {hasNote ? "📝 Note" : "+ Note"}
-                      </button>
+                    {canCoach && entries.length > 0 && (
+                      <span className="text-[10px] text-amber-400 shrink-0">📝 {entries.length}</span>
                     )}
-                    {/* Owner can promote a student to coach (gym only, if seats left) */}
-                    {isGym && isOwner && (
-                      <button onClick={() => setRole(m.user_id, "coach")} disabled={!canAddCoach}
-                        className="text-[10px] font-semibold text-amber-400 hover:text-amber-300 disabled:text-zinc-700 disabled:cursor-not-allowed transition-colors shrink-0">
-                        Make coach
-                      </button>
-                    )}
-                    {isOwner && (
-                      <button onClick={() => kickMember(m.user_id)}
-                        className="text-zinc-700 hover:text-red-500 transition-colors p-1 shrink-0">
-                        <X size={14}/>
-                      </button>
-                    )}
-                  </div>
+                    <span className={`text-[10px] text-zinc-600 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}>▼</span>
+                  </button>
 
-                  {/* Coach note editor */}
+                  {/* Expanded actions (coach) */}
                   {canCoach && open && (
-                    <div className="mt-3 pt-3 border-t border-zinc-800 space-y-2">
+                    <div className="mt-3 pt-3 border-t border-zinc-800 space-y-3">
+                      {/* Owner actions */}
+                      {isOwner && (
+                        <div className="flex gap-2">
+                          {isGym && (
+                            <button onClick={() => setRole(m.user_id, "coach")} disabled={!canAddCoach}
+                              className="flex-1 py-2 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-semibold disabled:opacity-30">
+                              Make coach
+                            </button>
+                          )}
+                          <button onClick={() => kickMember(m.user_id)}
+                            className="flex-1 py-2 rounded-lg bg-red-500/10 text-red-400 text-xs font-semibold">
+                            Remove from gym
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Promotion readiness */}
                       <div>
                         <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-widest mb-1">Promotion readiness</p>
                         <textarea value={noteForm.promotion} onChange={e => setNoteForm(f => ({ ...f, promotion: e.target.value }))}
                           rows={2} placeholder="e.g. Ready for blue — guard solid, needs takedown defense"
                           className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 resize-none" />
+                        <button onClick={() => saveCoachNote(m.user_id)}
+                          className="mt-1 text-[11px] font-semibold text-zinc-400 hover:text-zinc-200">Save readiness</button>
                       </div>
+
+                      {/* Dated notes log */}
                       <div>
-                        <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1">General note</p>
-                        <textarea value={noteForm.general} onChange={e => setNoteForm(f => ({ ...f, general: e.target.value }))}
-                          rows={2} placeholder="Attendance, attitude, injuries, focus…"
-                          className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 resize-none" />
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => setEditingNote(null)} className="flex-1 py-2 rounded-xl bg-zinc-800 text-zinc-400 text-xs font-semibold">Cancel</button>
-                        <button onClick={() => saveCoachNote(m.user_id)} className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold">Save note</button>
+                        <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1">Notes</p>
+                        <div className="flex gap-2">
+                          <input value={newNoteText} onChange={e => setNewNoteText(e.target.value)}
+                            onKeyDown={e => e.key === "Enter" && addNoteEntry(m.user_id)}
+                            placeholder="Add a note…"
+                            className="flex-1 bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600" />
+                          <button onClick={() => addNoteEntry(m.user_id)} disabled={!newNoteText.trim()}
+                            className="bg-red-600 hover:bg-red-500 text-white px-3 rounded-xl text-xs font-semibold disabled:opacity-30">Add</button>
+                        </div>
+                        {entries.length > 0 && (
+                          <div className="mt-2 space-y-1.5">
+                            {entries.map(en => (
+                              <div key={en.id} className="flex items-start gap-2 group">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs text-zinc-300">{en.text}</p>
+                                  <p className="text-[10px] text-zinc-600">{format(new Date(en.created_at), "MMM d, yyyy · HH:mm")}</p>
+                                </div>
+                                <button onClick={() => deleteNoteEntry(en.id)} className="text-zinc-700 hover:text-red-500 p-0.5 shrink-0"><X size={12}/></button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
 
-                  {/* Note preview (collapsed) */}
-                  {canCoach && !open && hasNote && (
+                  {/* Collapsed previews */}
+                  {canCoach && !open && (promo || entries.length > 0) && (
                     <div className="mt-2 space-y-1">
-                      {note.promotion.trim() && <p className="text-xs text-amber-400/90">🥋 {note.promotion}</p>}
-                      {note.general.trim() && <p className="text-xs text-zinc-500">{note.general}</p>}
+                      {promo && <p className="text-xs text-amber-400/90">🥋 {promo}</p>}
+                      {entries[0] && <p className="text-xs text-zinc-500 truncate">{entries[0].text}</p>}
                     </div>
                   )}
                 </div>
