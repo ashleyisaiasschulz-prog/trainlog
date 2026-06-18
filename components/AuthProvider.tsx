@@ -93,7 +93,11 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     // Safety net: never let the gate hang more than 4s
     const t = setTimeout(() => setLoading(false), 4000);
 
-    return () => { subscription.unsubscribe(); clearTimeout(t); };
+    // Flush any offline-logged sessions the moment the network returns.
+    const onOnline = () => { useTrainingStore.getState().syncPending().catch(() => {}); };
+    window.addEventListener("online", onOnline);
+
+    return () => { subscription.unsubscribe(); clearTimeout(t); window.removeEventListener("online", onOnline); };
   }, []);
 
   return <>{children}</>;

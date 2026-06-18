@@ -1,10 +1,19 @@
 "use client";
 
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import {
   TrainingSession, BeltPromotion, Tournament, Belt, Schedule, CheckIn, BELT_ORDER,
 } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
+
+// A session write that hasn't been confirmed by the server yet (e.g. logged
+// while offline). Kept in localStorage so it survives an app restart and is
+// flushed on reconnect.
+interface PendingOp { id: string; action: "upsert" | "delete" }
+const isOffline = () => typeof navigator !== "undefined" && navigator.onLine === false;
+const withPending = (pending: PendingOp[], id: string, action: "upsert" | "delete"): PendingOp[] =>
+  [...pending.filter(p => p.id !== id), { id, action }];
 
 function deriveCurrentBelt(promotions: BeltPromotion[]): { belt: Belt; stripes: number } {
   if (promotions.length === 0) return { belt: "white", stripes: 0 };
@@ -103,11 +112,14 @@ interface TrainingStore {
   upsertCheckIn: (c: CheckIn) => void;
   getCheckIn: (scheduleId: string, date: string) => CheckIn | undefined;
 
+  pending: PendingOp[];
+  syncPending: () => Promise<void>;
+
   loadFromCloud: (userId: string) => Promise<void>;
   reset: () => void;
 }
 
-export const useTrainingStore = create<TrainingStore>()((set, get) => ({
+export const useTrainingStore = create<TrainingStore>()(persist((set, get) => ({
   userId: null,
   loaded: false,
   sessions: [],
@@ -117,9 +129,40 @@ export const useTrainingStore = create<TrainingStore>()((set, get) => ({
   tournaments: [],
   schedules: [],
   checkIns: [],
+  pending: [],
+
+  // ── OFFLINE SYNC ──
+  // Flush every queued session write to the server. Called on reconnect and
+  // at the start of loadFromCloud. Stops on the first failure (still offline).
+  syncPending: async () => {
+    const uid = get().userId;
+    if (!uid || isOffline() || get().pending.length === 0) return;
+    const c = sb();
+    for (const op of [...get().pending]) {
+      try {
+        if (op.action === "delete") {
+          const { error } = await c.from("training_sessions").delete().eq("id", op.id);
+          if (error) throw error;
+        } else {
+          const s = get().sessions.find(x => x.id === op.id);
+          if (!s) { await c.from("training_sessions").delete().eq("id", op.id); }
+          else {
+            const { error } = await c.from("training_sessions").upsert(sessionToRow(s, uid));
+            if (error) throw error;
+          }
+        }
+        set(st => ({ pending: st.pending.filter(p => p.id !== op.id) }));
+      } catch {
+        break; // still offline / server error → keep the rest queued
+      }
+    }
+  },
 
   // ── LOAD ──
   loadFromCloud: async (userId) => {
+    set({ userId });
+    // Push anything logged offline before we overwrite local state with cloud.
+    await get().syncPending();
     const c = sb();
     const [ses, pro, tou, sch, chk] = await Promise.all([
       c.from("training_sessions").select("*").eq("user_id", userId).order("date", { ascending: false }),
@@ -128,11 +171,19 @@ export const useTrainingStore = create<TrainingStore>()((set, get) => ({
       c.from("schedules").select("*").eq("user_id", userId),
       c.from("check_ins").select("*").eq("user_id", userId),
     ]);
+    // If the network failed, keep the locally-persisted state rather than wiping it.
+    if (ses.error) { set({ loaded: true }); return; }
     const promotions = (pro.data ?? []).map(rowToPromo);
     const { belt, stripes } = deriveCurrentBelt(promotions);
+    const cloudSessions = (ses.data ?? []).map(rowToSession);
+    // Preserve any still-unsynced local sessions not yet in the cloud.
+    const pendingUpsertIds = get().pending.filter(p => p.action === "upsert").map(p => p.id);
+    const localPending = get().sessions.filter(
+      s => pendingUpsertIds.includes(s.id) && !cloudSessions.some(cs => cs.id === s.id)
+    );
     set({
       userId, loaded: true,
-      sessions: (ses.data ?? []).map(rowToSession),
+      sessions: [...localPending, ...cloudSessions],
       promotions, currentBelt: belt, currentStripes: stripes,
       tournaments: (tou.data ?? []).map(rowToTournament),
       schedules: (sch.data ?? []).map(rowToSchedule),
@@ -144,23 +195,23 @@ export const useTrainingStore = create<TrainingStore>()((set, get) => ({
 
   reset: () => set({
     userId: null, loaded: false, sessions: [], promotions: [], tournaments: [],
-    schedules: [], checkIns: [], currentBelt: "white", currentStripes: 0,
+    schedules: [], checkIns: [], currentBelt: "white", currentStripes: 0, pending: [],
   }),
 
-  // ── SESSIONS ──
+  // ── SESSIONS ── (optimistic local write + queued cloud sync)
   addSession: (s) => {
     const uid = get().userId; if (!uid) return;
-    set(st => ({ sessions: [s, ...st.sessions] }));
-    sb().from("training_sessions").insert(sessionToRow(s, uid)).then();
+    set(st => ({ sessions: [s, ...st.sessions], pending: withPending(st.pending, s.id, "upsert") }));
+    get().syncPending();
   },
   updateSession: (s) => {
     const uid = get().userId; if (!uid) return;
-    set(st => ({ sessions: st.sessions.map(x => x.id === s.id ? s : x) }));
-    sb().from("training_sessions").update(sessionToRow(s, uid)).eq("id", s.id).then();
+    set(st => ({ sessions: st.sessions.map(x => x.id === s.id ? s : x), pending: withPending(st.pending, s.id, "upsert") }));
+    get().syncPending();
   },
   deleteSession: (id) => {
-    set(st => ({ sessions: st.sessions.filter(x => x.id !== id) }));
-    sb().from("training_sessions").delete().eq("id", id).then();
+    set(st => ({ sessions: st.sessions.filter(x => x.id !== id), pending: withPending(st.pending, id, "delete") }));
+    get().syncPending();
   },
   getSession: (id) => get().sessions.find(s => s.id === id),
 
@@ -232,4 +283,19 @@ export const useTrainingStore = create<TrainingStore>()((set, get) => ({
   },
   getCheckIn: (scheduleId, date) =>
     get().checkIns.find(c => c.scheduleId === scheduleId && c.date === date),
+}), {
+  name: "grapplr-training",
+  // Persist data for offline use + the pending-sync queue. `loaded` is not
+  // persisted so the app always re-fetches from cloud when it can.
+  partialize: (s) => ({
+    userId: s.userId,
+    sessions: s.sessions,
+    promotions: s.promotions,
+    tournaments: s.tournaments,
+    schedules: s.schedules,
+    checkIns: s.checkIns,
+    currentBelt: s.currentBelt,
+    currentStripes: s.currentStripes,
+    pending: s.pending,
+  }),
 }));
