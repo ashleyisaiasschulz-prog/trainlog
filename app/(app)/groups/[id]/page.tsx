@@ -519,14 +519,19 @@ function GroupDetailInner() {
     <div className="px-4 pt-5 pb-28 space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link href={isGym ? "/groups?list=1" : "/friends"} className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 transition-colors">
+        <Link href={isGym ? "/groups?list=1" : "/friends"} className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 transition-colors shrink-0">
           <ArrowLeft size={18}/>
         </Link>
+        <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400 font-bold text-lg shrink-0">
+          {group.name[0].toUpperCase()}
+        </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold tracking-tight text-zinc-100 truncate">{group.name}</h1>
-          <p className="text-xs text-zinc-500">
-            {group.gym && `${group.gym} · `}{members.length} member{members.length !== 1 ? "s" : ""} · Code <span className="font-mono text-zinc-400">{group.invite_code}</span>
-          </p>
+          <h1 className="text-lg font-bold tracking-tight text-zinc-100 truncate leading-tight">{group.name}</h1>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-xs text-zinc-500">{members.length} member{members.length !== 1 ? "s" : ""}</span>
+            <span className="text-zinc-700 text-xs">·</span>
+            <span className="font-mono text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">{group.invite_code}</span>
+          </div>
         </div>
         {/* Members check in by scanning the gym QR */}
         {isGym && !canCoach && (
@@ -555,7 +560,7 @@ function GroupDetailInner() {
 
       {/* Announcements (broadcast) */}
       {(announcements.length > 0 || canCoach) && (
-        <div className="bg-gradient-to-r from-amber-500/[0.08] to-zinc-900 border border-amber-500/20 rounded-2xl p-4 space-y-2">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-2.5">
           <p className="text-[11px] font-semibold text-amber-400 uppercase tracking-widest flex items-center gap-1.5"><Megaphone size={12}/> Announcements</p>
           {canCoach && (
             <div className="flex gap-2">
@@ -588,7 +593,7 @@ function GroupDetailInner() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 overflow-x-auto no-scrollbar">
+      <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-2xl p-1">
         {([
           ...(isGym ? [["sessions","Plan",Calendar]] as const : []),
           ["chat","Chat",MessageCircle],["board","Board",Trophy],["members","Members",Users],
@@ -596,10 +601,10 @@ function GroupDetailInner() {
           ...(canCoach ? [["settings","Settings",SettingsIcon]] as const : []),
         ] as const).map(([k,label,Icon]) => (
           <button key={k} onClick={() => setTab(k)}
-            className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
-              tab === k ? "bg-zinc-700 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-xl text-[10px] font-semibold transition-colors ${
+              tab === k ? "bg-red-500/10 text-red-400" : "text-zinc-500 hover:text-zinc-300"
             }`}>
-            <Icon size={13}/> {label}
+            <Icon size={16} strokeWidth={tab === k ? 2.4 : 1.9}/> {label}
           </button>
         ))}
       </div>
