@@ -7,7 +7,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useTagStore } from "@/store/useTagStore";
 import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy, Loader2, Pencil, Settings as SettingsIcon, MapPin } from "lucide-react";
 import Link from "next/link";
-import { DAY_NAMES_FULL, BELT_COLORS, Belt } from "@/lib/types";
+import { DAY_NAMES_FULL, BELT_COLORS, BELT_ORDER, BELT_LABELS, Belt } from "@/lib/types";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { QRCodeSVG } from "qrcode.react";
 import { QrCode } from "lucide-react";
@@ -80,6 +80,8 @@ function GroupDetailInner() {
   const [joinReqs, setJoinReqs] = useState<{ user_id: string; profiles: MiniProfile }[]>([]);
   const [noteEntries, setNoteEntries] = useState<Record<string, { id: string; text: string; created_at: string }[]>>({});
   const [newNoteText, setNewNoteText] = useState("");
+  const [promoteBelt, setPromoteBelt] = useState<string>("white");
+  const [promoteStripes, setPromoteStripes] = useState<number>(0);
   const [addressInput, setAddressInput] = useState("");
   const [addressBusy, setAddressBusy] = useState(false);
   const [addressErr, setAddressErr] = useState("");
@@ -220,6 +222,11 @@ function GroupDetailInner() {
   };
   const deleteNoteEntry = async (entryId: string) => {
     await sb.from("coach_note_entries").delete().eq("id", entryId);
+    await load();
+  };
+
+  const promoteMember = async (uid: string) => {
+    await sb.rpc("promote_member", { p_group: id, p_user: uid, p_belt: promoteBelt, p_stripes: promoteStripes });
     await load();
   };
 
@@ -975,7 +982,11 @@ function GroupDetailInner() {
                       const next = open ? null : m.user_id;
                       setEditingNote(next);
                       setNewNoteText("");
-                      if (next) setNoteForm(note ?? { general: "", promotion: "" });
+                      if (next) {
+                        setNoteForm(note ?? { general: "", promotion: "" });
+                        setPromoteBelt(m.profiles?.belt ?? "white");
+                        setPromoteStripes(m.profiles?.stripes ?? 0);
+                      }
                     }}
                     className="w-full flex items-center gap-3 text-left">
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
@@ -1007,6 +1018,25 @@ function GroupDetailInner() {
                             className="flex-1 py-2 rounded-lg bg-red-500/10 text-red-400 text-xs font-semibold">
                             Remove from gym
                           </button>
+                        </div>
+                      )}
+
+                      {/* Promote (belt + stripes) */}
+                      {isOwner && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-widest mb-1">Promote</p>
+                          <div className="flex gap-2">
+                            <select value={promoteBelt} onChange={e => setPromoteBelt(e.target.value)}
+                              className="flex-1 bg-zinc-800/60 border border-zinc-800 rounded-lg px-2 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-600">
+                              {BELT_ORDER.map(b => <option key={b} value={b}>{BELT_LABELS[b]}</option>)}
+                            </select>
+                            <select value={promoteStripes} onChange={e => setPromoteStripes(Number(e.target.value))}
+                              className="bg-zinc-800/60 border border-zinc-800 rounded-lg px-2 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-600">
+                              {[0,1,2,3,4].map(n => <option key={n} value={n}>{n}★</option>)}
+                            </select>
+                            <button onClick={() => promoteMember(m.user_id)}
+                              className="bg-amber-500 hover:bg-amber-400 text-zinc-950 px-3 rounded-lg text-xs font-bold">Apply</button>
+                          </div>
                         </div>
                       )}
 
