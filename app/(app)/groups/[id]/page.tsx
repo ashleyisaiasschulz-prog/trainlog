@@ -71,10 +71,11 @@ function GroupDetailInner() {
   const [tab, setTab]           = useState<"sessions" | "members" | "chat" | "insights" | "board" | "settings">("board");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [occOverrides, setOccOverrides] = useState<Record<string, { focus: string | null; positions: string[] }>>({});
+  const [occOverrides, setOccOverrides] = useState<Record<string, { focus: string | null; positions: string[]; cancelled?: boolean }>>({});
   const [editingOcc, setEditingOcc] = useState<string | null>(null);
   const [occForm, setOccForm] = useState<{ focus: string; positions: string[] }>({ focus: "", positions: [] });
   const [expandedOcc, setExpandedOcc] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [openMats, setOpenMats] = useState<OpenMat[]>([]);
   const [omCounts, setOmCounts] = useState<Record<string, number>>({});
   const [joinReqs, setJoinReqs] = useState<{ user_id: string; profiles: MiniProfile }[]>([]);
@@ -180,9 +181,9 @@ function GroupDetailInner() {
     setAttendance((att as any) ?? []);
     // Per-date plan overrides (positions + notes for a specific occurrence)
     const { data: socc } = await sb.from("session_occurrences")
-      .select("trainer_session_id, date, focus, positions").eq("group_id", id);
-    const om: Record<string, { focus: string | null; positions: string[] }> = {};
-    (socc ?? []).forEach((o: any) => { om[`${o.trainer_session_id}-${o.date}`] = { focus: o.focus, positions: o.positions ?? [] }; });
+      .select("trainer_session_id, date, focus, positions, cancelled").eq("group_id", id);
+    const om: Record<string, { focus: string | null; positions: string[]; cancelled?: boolean }> = {};
+    (socc ?? []).forEach((o: any) => { om[`${o.trainer_session_id}-${o.date}`] = { focus: o.focus, positions: o.positions ?? [], cancelled: o.cancelled ?? false }; });
     setOccOverrides(om);
     // This gym's upcoming open mats
     const { data: oms } = await sb.from("open_mats")
@@ -305,6 +306,7 @@ function GroupDetailInner() {
   // one-off sessions stay as their single date. Each occurrence gets its own
   // RSVP / attendance via occurrence_date.
   const WEEKS_AHEAD = 4;
+  const isCancelled = (sid: string, date: string) => !!occOverrides[`${sid}-${date}`]?.cancelled;
   const buildOccurrences = (): Occurrence[] => {
     const out: Occurrence[] = [];
     for (const s of sessions) {
@@ -314,7 +316,7 @@ function GroupDetailInner() {
         d.setDate(d.getDate() + diff);
         for (let i = 0; i < WEEKS_AHEAD; i++) {
           const dateStr = format(d, "yyyy-MM-dd");
-          out.push({ session: s, date: dateStr, key: `${s.id}-${dateStr}` });
+          if (!isCancelled(s.id, dateStr)) out.push({ session: s, date: dateStr, key: `${s.id}-${dateStr}` });
           d.setDate(d.getDate() + 7);
         }
       } else if (s.date) {
@@ -327,22 +329,18 @@ function GroupDetailInner() {
     return out;
   };
 
-  // Effective per-date plan: a day's override falls back to the class default
-  // (positions set when creating the session). Notes are per-day only.
-  const effPositions = (s: TrainerSession, date: string) =>
-    occOverrides[`${s.id}-${date}`]?.positions ?? s.positions ?? [];
+  // Positions are set once at the class level (creation form). Notes are per day.
+  const effPositions = (s: TrainerSession) => s.positions ?? [];
   const effFocus = (s: TrainerSession, date: string) =>
     occOverrides[`${s.id}-${date}`]?.focus ?? null;
 
   const startOccEdit = (s: TrainerSession, date: string) => {
     setEditingOcc(`${s.id}-${date}`);
-    setOccForm({ focus: effFocus(s, date) ?? "", positions: effPositions(s, date) });
+    setOccForm({ focus: effFocus(s, date) ?? "", positions: effPositions(s) });
   };
-  const toggleOccPos = (p: string) =>
-    setOccForm(f => ({ ...f, positions: f.positions.includes(p) ? f.positions.filter(x => x !== p) : [...f.positions, p] }));
   const saveOcc = async (sid: string, date: string) => {
     await sb.from("session_occurrences").upsert(
-      { group_id: id, trainer_session_id: sid, date, focus: occForm.focus, positions: occForm.positions },
+      { group_id: id, trainer_session_id: sid, date, focus: occForm.focus },
       { onConflict: "trainer_session_id,date" }
     );
     setEditingOcc(null);
@@ -444,6 +442,16 @@ function GroupDetailInner() {
 
   const deleteSession = async (sid: string) => {
     await sb.from("trainer_sessions").update({ active: false }).eq("id", sid);
+    setConfirmDelete(null);
+    await load();
+  };
+  // Cancel just one occurrence of a recurring class (mark that date cancelled).
+  const cancelOccurrence = async (sid: string, date: string) => {
+    await sb.from("session_occurrences").upsert(
+      { group_id: id, trainer_session_id: sid, date, cancelled: true },
+      { onConflict: "trainer_session_id,date" }
+    );
+    setConfirmDelete(null);
     await load();
   };
 
@@ -638,12 +646,12 @@ function GroupDetailInner() {
                           </p>
                           {/* Planned positions for THIS date — tap to see notes */}
                           {(() => {
-                            const pos = effPositions(s, date);
+                            const pos = effPositions(s);
                             const notes = effFocus(s, date);
                             const expanded = expandedOcc === key;
                             if (pos.length === 0 && !notes) {
                               return canCoach ? (
-                                <button onClick={()=>startOccEdit(s, date)} className="mt-2 text-[11px] text-zinc-500 hover:text-zinc-300">+ Plan this day</button>
+                                <button onClick={()=>startOccEdit(s, date)} className="mt-2 text-[11px] text-zinc-500 hover:text-zinc-300">+ Add notes for this day</button>
                               ) : null;
                             }
                             return (
@@ -663,27 +671,16 @@ function GroupDetailInner() {
                             );
                           })()}
 
-                          {/* Coach: edit THIS day's plan (positions + notes) */}
+                          {/* Coach: notes for THIS day */}
                           {canCoach && editingOcc === key && (
                             <div className="mt-2 bg-zinc-800/40 rounded-xl p-3 space-y-2">
-                              <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Plan · {format(new Date(date+"T12:00:00"),"EEE, MMM d")}</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {positionTags.map(p => {
-                                  const on = occForm.positions.includes(p);
-                                  return (
-                                    <button key={p} type="button" onClick={()=>toggleOccPos(p)}
-                                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
-                                        on ? "bg-red-500/15 text-red-400 ring-1 ring-red-500/30" : "bg-zinc-800/60 text-zinc-400"
-                                      }`}>{p}</button>
-                                  );
-                                })}
-                              </div>
+                              <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Notes · {format(new Date(date+"T12:00:00"),"EEE, MMM d")}</p>
                               <textarea value={occForm.focus} onChange={e=>setOccForm(f=>({...f,focus:e.target.value}))}
                                 placeholder="Notes for this day (e.g. Single Leg X)" rows={2}
                                 className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 resize-none" />
                               <div className="flex gap-2">
                                 <button onClick={()=>setEditingOcc(null)} className="flex-1 py-2 rounded-lg bg-zinc-800 text-zinc-400 text-xs font-semibold">Cancel</button>
-                                <button onClick={()=>saveOcc(s.id, date)} className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-semibold">Save day</button>
+                                <button onClick={()=>saveOcc(s.id, date)} className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-semibold">Save</button>
                               </div>
                             </div>
                           )}
@@ -745,18 +742,32 @@ function GroupDetailInner() {
                         </div>
                         {canCoach && (
                           <div className="flex flex-col gap-1 shrink-0">
-                            <button onClick={()=>startOccEdit(s, date)} title="Plan this day" className="text-zinc-700 hover:text-red-400 p-1">
+                            <button onClick={()=>startOccEdit(s, date)} title="Notes for this day" className="text-zinc-700 hover:text-red-400 p-1">
                               <Target size={14}/>
                             </button>
                             <button onClick={()=>startEdit(s)} title="Edit class" className="text-zinc-700 hover:text-zinc-300 p-1">
                               <Pencil size={14}/>
                             </button>
-                            <button onClick={()=>deleteSession(s.id)} title="Delete class" className="text-zinc-700 hover:text-red-500 p-1">
+                            <button onClick={()=> s.recurring ? setConfirmDelete(key) : deleteSession(s.id)} title="Delete" className="text-zinc-700 hover:text-red-500 p-1">
                               <Trash2 size={14}/>
                             </button>
                           </div>
                         )}
                       </div>
+
+                      {/* Delete choice for a recurring class */}
+                      {canCoach && confirmDelete === key && (
+                        <div className="mt-3 pt-3 border-t border-zinc-800 space-y-2">
+                          <p className="text-[11px] text-zinc-500">Delete which?</p>
+                          <div className="flex gap-2">
+                            <button onClick={()=>cancelOccurrence(s.id, date)}
+                              className="flex-1 py-2 rounded-lg bg-zinc-800 text-zinc-200 text-xs font-semibold">Just {format(new Date(date+"T12:00:00"),"MMM d")}</button>
+                            <button onClick={()=>deleteSession(s.id)}
+                              className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-semibold">All weekly</button>
+                          </div>
+                          <button onClick={()=>setConfirmDelete(null)} className="w-full text-[11px] text-zinc-500 hover:text-zinc-300">Cancel</button>
+                        </div>
+                      )}
 
                       {/* RSVP buttons (per date) */}
                       {!canCoach && (
@@ -1091,7 +1102,7 @@ function GroupDetailInner() {
       {/* ── INSIGHTS TAB ── */}
       {tab === "insights" && canCoach && (
         <div className="space-y-4">
-          <GymInsights attendance={attendance} members={members} sessions={sessions} coachNotes={coachNotes} occOverrides={occOverrides} />
+          <GymInsights attendance={attendance} members={members} sessions={sessions} coachNotes={coachNotes} />
           <GroupInsights groupId={id as string} isTrainer={canCoach} />
         </div>
       )}
@@ -1118,12 +1129,11 @@ function GroupDetailInner() {
 }
 
 /* ── Gym Insights: the coach's command center (gym-only, check-in driven) ── */
-function GymInsights({ attendance, members, sessions, coachNotes, occOverrides }: {
+function GymInsights({ attendance, members, sessions, coachNotes }: {
   attendance: { trainer_session_id: string; user_id: string; date: string }[];
   members: Member[];
   sessions: TrainerSession[];
   coachNotes: Record<string, CoachNote>;
-  occOverrides: Record<string, { focus: string | null; positions: string[] }>;
 }) {
   const now = new Date();
   const monthKey = format(now, "yyyy-MM");
@@ -1196,8 +1206,8 @@ function GymInsights({ attendance, members, sessions, coachNotes, occOverrides }
     }
     for (const ds of dates) {
       if (!happened(s, ds)) continue;
-      // Effective positions for that day (override → class default)
-      const ps = occOverrides[`${s.id}-${ds}`]?.positions ?? s.positions ?? [];
+      // Positions are class-level (set at creation)
+      const ps = s.positions ?? [];
       for (const p of ps) {
         if (!currMap[p]) currMap[p] = { count: 0, last: ds };
         currMap[p].count++;
