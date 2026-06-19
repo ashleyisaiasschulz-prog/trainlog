@@ -36,7 +36,7 @@ interface TrainerSession {
   id: string; title: string; description: string | null; focus: string | null;
   date: string | null; time: string | null; duration: number | null;
   gi: boolean; recurring: boolean; day_of_week: number | null; active: boolean;
-  positions: string[] | null;
+  positions: string[] | null; capacity: number | null;
 }
 interface Rsvp { id: string; trainer_session_id: string; user_id: string; status: string; occurrence_date: string | null }
 interface Occurrence { session: TrainerSession; date: string; key: string }
@@ -94,7 +94,7 @@ function GroupDetailInner() {
   const [form, setForm] = useState({
     title: "", description: "", focus: "", date: format(new Date(), "yyyy-MM-dd"),
     time: "19:00", duration: 90, gi: true, recurring: false, day_of_week: 2,
-    positions: [] as string[], occNotes: "",
+    positions: [] as string[], occNotes: "", capacity: 0,
   });
   const [editingDate, setEditingDate] = useState<string | null>(null);
   const positionTags = useTagStore((s) => s.positions);
@@ -412,7 +412,7 @@ function GroupDetailInner() {
     setForm({
       title: "", description: "", focus: "", date: format(new Date(), "yyyy-MM-dd"),
       time: "19:00", duration: 90, gi: true, recurring: false, day_of_week: 2,
-      positions: [], occNotes: "",
+      positions: [], occNotes: "", capacity: 0,
     });
 
   const startCreate = () => { setEditingId(null); setEditingDate(null); setFormError(""); resetForm(); setShowForm(true); };
@@ -427,7 +427,7 @@ function GroupDetailInner() {
       date: s.date ?? format(new Date(), "yyyy-MM-dd"),
       time: (s.time ?? "19:00").slice(0, 5), duration: s.duration ?? 90, gi: s.gi,
       recurring: s.recurring, day_of_week: s.day_of_week ?? 2,
-      positions: s.positions ?? [], occNotes: effFocus(s, date) ?? "",
+      positions: s.positions ?? [], occNotes: effFocus(s, date) ?? "", capacity: s.capacity ?? 0,
     });
     setShowForm(true);
   };
@@ -443,7 +443,7 @@ function GroupDetailInner() {
       date: form.recurring ? null : form.date,
       time: form.time, duration: form.duration, gi: form.gi,
       recurring: form.recurring, day_of_week: form.recurring ? form.day_of_week : null,
-      positions: form.positions,
+      positions: form.positions, capacity: form.capacity || null,
     };
     const { error } = editingId
       ? await sb.from("trainer_sessions").update(payload).eq("id", editingId)
@@ -481,19 +481,35 @@ function GroupDetailInner() {
   const myRsvp = (sid: string, date: string) =>
     rsvps.find(r => r.trainer_session_id === sid && r.occurrence_date === date && r.user_id === user?.id);
 
+  const goingCountFor = (sid: string, date: string, excludeUser?: string) =>
+    rsvps.filter(r => r.trainer_session_id === sid && r.occurrence_date === date && r.status === "going" && r.user_id !== excludeUser).length;
+
   const toggleRsvp = async (sid: string, date: string, going: boolean) => {
     if (!user) return;
     const existing = myRsvp(sid, date);
-    if (existing) {
-      await sb.from("session_rsvps").update({ status: going ? "going" : "not_going" }).eq("id", existing.id);
+    const session = sessions.find(s => s.id === sid);
+    const cap = session?.capacity ?? 0;
+
+    if (going) {
+      // Full → join the waitlist instead of "going".
+      const status = cap > 0 && goingCountFor(sid, date, user.id) >= cap ? "waitlist" : "going";
+      if (existing) await sb.from("session_rsvps").update({ status }).eq("id", existing.id);
+      else await sb.from("session_rsvps").insert({ trainer_session_id: sid, user_id: user.id, status, occurrence_date: date });
     } else {
-      await sb.from("session_rsvps").insert({
-        trainer_session_id: sid, user_id: user.id, status: going ? "going" : "not_going",
-        occurrence_date: date,
-      });
+      if (existing) await sb.from("session_rsvps").update({ status: "not_going" }).eq("id", existing.id);
+      // A spot freed up → promote the earliest person on the waitlist.
+      if (cap > 0 && goingCountFor(sid, date, user.id) < cap) {
+        const { data: wl } = await sb.from("session_rsvps")
+          .select("id").eq("trainer_session_id", sid).eq("occurrence_date", date).eq("status", "waitlist")
+          .order("created_at", { ascending: true }).limit(1);
+        if (wl && wl.length) await sb.from("session_rsvps").update({ status: "going" }).eq("id", wl[0].id);
+      }
     }
     await load();
   };
+
+  const waitlistUsers = (sid: string, date: string) =>
+    rsvps.filter(r => r.trainer_session_id === sid && r.occurrence_date === date && r.status === "waitlist").map(r => r.user_id);
 
   if (!group) {
     return <div className="px-4 pt-5 pb-28 text-center text-zinc-500 text-sm">Loading…</div>;
@@ -659,6 +675,10 @@ function GroupDetailInner() {
                 </button>
               </div>
 
+              <input type="number" min={0} value={form.capacity} onChange={e=>setForm(f=>({...f,capacity:Number(e.target.value)}))}
+                placeholder="Max spots (0 = unlimited)"
+                className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600" />
+
               {/* Notes for the specific day being edited */}
               {editingDate && (
                 <div>
@@ -694,6 +714,9 @@ function GroupDetailInner() {
                 {occs.map(({ session: s, date, key }) => {
                   const mine = myRsvp(s.id, date);
                   const going = goingUsers(s.id, date);
+                  const cap = s.capacity ?? 0;
+                  const waitlist = waitlistUsers(s.id, date);
+                  const isFull = cap > 0 && going.length >= cap;
                   return (
                     <div key={key} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
                       <div className="flex items-start gap-3">
@@ -737,10 +760,10 @@ function GroupDetailInner() {
                           {/* Who's coming */}
                           <div className="mt-2.5">
                             {going.length === 0 ? (
-                              <p className="text-[11px] text-zinc-600">No one confirmed yet</p>
+                              <p className="text-[11px] text-zinc-600">No one confirmed yet{cap > 0 ? ` · 0/${cap} spots` : ""}</p>
                             ) : (
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-[11px] text-zinc-500">{going.length} coming:</span>
+                                <span className="text-[11px] text-zinc-500">{going.length}{cap > 0 ? `/${cap}` : ""} coming:</span>
                                 {going.map(uid => (
                                   <span key={uid} className="inline-flex items-center gap-1 text-[11px] text-zinc-300 bg-zinc-800 px-2 py-0.5 rounded-md">
                                     <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold border border-black/20 ${beltAvatar(beltOf(uid))}`}>
@@ -750,6 +773,9 @@ function GroupDetailInner() {
                                   </span>
                                 ))}
                               </div>
+                            )}
+                            {waitlist.length > 0 && (
+                              <p className="text-[11px] text-amber-400 mt-1">⏳ {waitlist.length} waitlisted{canCoach ? `: ${waitlist.map(nameOf).join(", ")}` : ""}</p>
                             )}
                           </div>
                           {/* Attendance (coach view): who came + no-shows for THIS date */}
@@ -821,9 +847,13 @@ function GroupDetailInner() {
                         <div className="flex gap-2 mt-3 pt-3 border-t border-zinc-800">
                           <button onClick={()=>toggleRsvp(s.id, date, true)}
                             className={`flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
-                              mine?.status==="going" ? "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30" : "bg-zinc-800 text-zinc-400"
+                              mine?.status==="going" ? "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30"
+                              : mine?.status==="waitlist" ? "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30"
+                              : "bg-zinc-800 text-zinc-400"
                             }`}>
-                            <Check size={13}/> I'll be there
+                            {mine?.status==="waitlist"
+                              ? <>⏳ Waitlisted</>
+                              : <><Check size={13}/> {isFull && mine?.status!=="going" ? "Join waitlist" : "I'll be there"}</>}
                           </button>
                           <button onClick={()=>toggleRsvp(s.id, date, false)}
                             className={`flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
