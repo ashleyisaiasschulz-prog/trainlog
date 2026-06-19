@@ -722,11 +722,18 @@ function GroupDetailInner() {
                   const cap = s.capacity ?? 0;
                   const waitlist = waitlistUsers(s.id, date);
                   const isFull = cap > 0 && going.length >= cap;
+                  const dToday = date === format(new Date(), "yyyy-MM-dd");
                   return (
-                    <div key={key} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+                    <div key={key} className={`bg-zinc-900 border rounded-2xl p-4 ${dToday ? "border-red-500/30" : "border-zinc-800"}`}>
                       <div className="flex items-start gap-3">
+                        {/* Date badge */}
+                        <div className={`w-12 shrink-0 text-center rounded-xl py-1.5 ${dToday ? "bg-red-500/10" : "bg-zinc-800/50"}`}>
+                          <p className={`text-[9px] font-bold uppercase tracking-wide leading-none ${dToday ? "text-red-400" : "text-zinc-500"}`}>{format(new Date(date+"T12:00:00"),"EEE")}</p>
+                          <p className={`text-xl font-black leading-tight tabular-nums ${dToday ? "text-red-400" : "text-zinc-100"}`}>{format(new Date(date+"T12:00:00"),"d")}</p>
+                          <p className="text-[9px] text-zinc-600 leading-none">{format(new Date(date+"T12:00:00"),"MMM")}</p>
+                        </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-sm font-semibold text-zinc-100">{s.title}</p>
                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${s.gi ? "bg-blue-500/10 text-blue-400" : "bg-violet-500/10 text-violet-400"}`}>
                               {s.gi ? "Gi" : "No-Gi"}
@@ -737,8 +744,7 @@ function GroupDetailInner() {
                           </div>
                           <p className="text-xs text-zinc-500 mt-0.5 flex items-center gap-1">
                             <Clock size={11}/>
-                            {format(new Date(date+"T12:00:00"),"EEE, MMM d")}
-                            {" · "}{s.time?.slice(0,5)} · {s.duration}min
+                            {s.time?.slice(0,5)} · {s.duration}min
                           </p>
                           {/* Planned positions for THIS date — tap to see notes */}
                           {(() => {
