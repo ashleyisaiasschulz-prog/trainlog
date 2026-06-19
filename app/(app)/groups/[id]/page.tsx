@@ -8,7 +8,7 @@ import { useTagStore } from "@/store/useTagStore";
 import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy, Loader2, Pencil, Settings as SettingsIcon, MapPin } from "lucide-react";
 import Link from "next/link";
 import { DAY_NAMES_FULL, BELT_COLORS, BELT_ORDER, BELT_LABELS, Belt } from "@/lib/types";
-import { format, differenceInDays, parseISO } from "date-fns";
+import { format, differenceInDays, parseISO, startOfWeek, subWeeks } from "date-fns";
 import { QRCodeSVG } from "qrcode.react";
 import { QrCode } from "lucide-react";
 
@@ -77,6 +77,8 @@ function GroupDetailInner() {
   const [formError, setFormError] = useState("");
   const [openMats, setOpenMats] = useState<OpenMat[]>([]);
   const [omCounts, setOmCounts] = useState<Record<string, number>>({});
+  const [announcements, setAnnouncements] = useState<{ id: string; text: string; created_at: string; author_id: string }[]>([]);
+  const [newAnnouncement, setNewAnnouncement] = useState("");
   const [joinReqs, setJoinReqs] = useState<{ user_id: string; profiles: MiniProfile }[]>([]);
   const [noteEntries, setNoteEntries] = useState<Record<string, { id: string; text: string; created_at: string }[]>>({});
   const [newNoteText, setNewNoteText] = useState("");
@@ -210,6 +212,22 @@ function GroupDetailInner() {
     const nm: Record<string, { id: string; text: string; created_at: string }[]> = {};
     (ne ?? []).forEach((n: any) => { (nm[n.student_id] ||= []).push({ id: n.id, text: n.text, created_at: n.created_at }); });
     setNoteEntries(nm);
+    // Announcements (broadcast)
+    const { data: anns } = await sb.from("gym_announcements")
+      .select("id, text, created_at, author_id").eq("group_id", id)
+      .order("created_at", { ascending: false }).limit(5);
+    setAnnouncements((anns as any) ?? []);
+  };
+
+  const postAnnouncement = async () => {
+    if (!user || !newAnnouncement.trim()) return;
+    await sb.from("gym_announcements").insert({ group_id: id, author_id: user.id, text: newAnnouncement.trim() });
+    setNewAnnouncement("");
+    await load();
+  };
+  const deleteAnnouncement = async (aid: string) => {
+    await sb.from("gym_announcements").delete().eq("id", aid);
+    await load();
   };
 
   const addNoteEntry = async (studentId: string) => {
@@ -518,6 +536,40 @@ function GroupDetailInner() {
         </button>
       )}
       {billingError && <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{billingError}</p>}
+
+      {/* Announcements (broadcast) */}
+      {(announcements.length > 0 || canCoach) && (
+        <div className="bg-gradient-to-r from-amber-500/[0.08] to-zinc-900 border border-amber-500/20 rounded-2xl p-4 space-y-2">
+          <p className="text-[11px] font-semibold text-amber-400 uppercase tracking-widest">📢 Announcements</p>
+          {canCoach && (
+            <div className="flex gap-2">
+              <input value={newAnnouncement} onChange={e => setNewAnnouncement(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && postAnnouncement()}
+                placeholder="Post to all members…"
+                className="flex-1 bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600" />
+              <button onClick={postAnnouncement} disabled={!newAnnouncement.trim()}
+                className="bg-amber-500 hover:bg-amber-400 text-zinc-950 px-4 rounded-xl text-xs font-bold disabled:opacity-30">Post</button>
+            </div>
+          )}
+          {announcements.length === 0 ? (
+            <p className="text-xs text-zinc-600">No announcements yet.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {announcements.map(an => (
+                <div key={an.id} className="flex items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-zinc-200">{an.text}</p>
+                    <p className="text-[10px] text-zinc-600">{nameOf(an.author_id)} · {format(new Date(an.created_at), "MMM d, HH:mm")}</p>
+                  </div>
+                  {canCoach && (
+                    <button onClick={() => deleteAnnouncement(an.id)} className="text-zinc-700 hover:text-red-500 p-0.5 shrink-0"><X size={12}/></button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 overflow-x-auto no-scrollbar">
@@ -1113,8 +1165,11 @@ function GroupDetailInner() {
 
       {/* ── LEADERBOARD TAB ── */}
       {tab === "board" && (
-        <GroupLeaderboard members={members} currentUserId={user?.id ?? ""}
-          isGym={isGym} attendance={attendance} />
+        <div className="space-y-4">
+          {isGym && <MyAttendanceCard attendance={attendance} userId={user?.id ?? ""} />}
+          <GroupLeaderboard members={members} currentUserId={user?.id ?? ""}
+            isGym={isGym} attendance={attendance} />
+        </div>
       )}
 
       {/* ── INSIGHTS TAB ── */}
@@ -1416,6 +1471,55 @@ function Kpi({ value, label, accent }: { value: number; label: string; accent?: 
     <div className={`rounded-2xl p-4 border ${accent ? "bg-red-950/20 border-red-500/30" : "bg-zinc-900 border-zinc-800"}`}>
       <p className={`text-2xl font-black tabular-nums ${accent ? "text-red-400" : "text-zinc-100"}`}>{value}</p>
       <p className="text-[11px] text-zinc-500 mt-0.5">{label}</p>
+    </div>
+  );
+}
+
+/* ── My attendance: streak + badges ── */
+function MyAttendanceCard({ attendance, userId }: {
+  attendance: { user_id: string; date: string }[]; userId: string;
+}) {
+  const dates = attendance.filter(a => a.user_id === userId).map(a => a.date);
+  const total = dates.length;
+  const weekKey = (d: Date) => format(startOfWeek(d, { weekStartsOn: 1 }), "yyyy-MM-dd");
+  const weeks = new Set(dates.map(d => weekKey(new Date(d + "T12:00:00"))));
+  let streak = 0;
+  let cursor = startOfWeek(new Date(), { weekStartsOn: 1 });
+  while (weeks.has(format(cursor, "yyyy-MM-dd"))) { streak++; cursor = subWeeks(cursor, 1); }
+
+  const BADGES = [
+    { n: 10, e: "🥉", label: "10 classes" },
+    { n: 25, e: "🥈", label: "25 classes" },
+    { n: 50, e: "🥇", label: "50 classes" },
+    { n: 100, e: "🏆", label: "100 classes" },
+    { n: 250, e: "💎", label: "250 classes" },
+  ];
+
+  return (
+    <div className="bg-gradient-to-br from-red-500/[0.08] to-zinc-900 border border-red-500/20 rounded-2xl p-4 space-y-3">
+      <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest">Your attendance</p>
+      <div className="grid grid-cols-2 gap-3 text-center">
+        <div className="bg-zinc-900/60 rounded-xl p-3">
+          <p className="text-2xl font-black text-amber-400 tabular-nums">🔥 {streak}</p>
+          <p className="text-[11px] text-zinc-500 mt-0.5">week streak</p>
+        </div>
+        <div className="bg-zinc-900/60 rounded-xl p-3">
+          <p className="text-2xl font-black text-zinc-100 tabular-nums">{total}</p>
+          <p className="text-[11px] text-zinc-500 mt-0.5">total check-ins</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        {BADGES.map(b => {
+          const earned = total >= b.n;
+          return (
+            <div key={b.n} title={b.label}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${earned ? "bg-amber-500/10 text-amber-300" : "bg-zinc-800/60 text-zinc-700"}`}>
+              <span className={earned ? "" : "grayscale opacity-50"}>{b.e}</span>
+              <span className="text-[10px] font-semibold">{b.n}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
