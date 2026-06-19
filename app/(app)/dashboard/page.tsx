@@ -6,7 +6,7 @@ import BeltBadge from "@/components/BeltBadge";
 import ScheduleWidget from "@/components/ScheduleWidget";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, ChevronRight, Timer, BookOpen, HeartPulse, CalendarDays, Trophy, QrCode } from "lucide-react";
+import { Plus, ChevronRight, Timer, BookOpen, HeartPulse, CalendarDays, Trophy, QrCode, Swords } from "lucide-react";
 import { BELT_ORDER, BELT_LABELS } from "@/lib/types";
 import { differenceInYears, differenceInDays, format, subDays } from "date-fns";
 import { useState } from "react";
@@ -147,6 +147,18 @@ export default function DashboardPage() {
           </div>
         </Link>
       </div>
+
+      {/* ── Skill Tree ── */}
+      <Link href="/skills" className="bg-gradient-to-r from-red-500/[0.08] to-zinc-900 border border-red-500/20 hover:border-red-500/40 rounded-2xl p-3.5 flex items-center gap-3 active:scale-[0.99] transition-all">
+        <div className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0">
+          <Swords size={17} className="text-red-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-zinc-200">Skill Tree</p>
+          <p className="text-[10px] text-zinc-600">Level up every position you train</p>
+        </div>
+        <ChevronRight size={16} className="text-zinc-700 shrink-0" />
+      </Link>
 
       {/* ── Competitions ── */}
       <Link href="/tournaments" className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-3.5 flex items-center gap-3 active:scale-[0.99] transition-all">
