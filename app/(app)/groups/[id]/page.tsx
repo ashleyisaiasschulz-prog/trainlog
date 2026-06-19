@@ -76,6 +76,7 @@ function GroupDetailInner() {
   const [occForm, setOccForm] = useState<{ focus: string; positions: string[] }>({ focus: "", positions: [] });
   const [expandedOcc, setExpandedOcc] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [formError, setFormError] = useState("");
   const [openMats, setOpenMats] = useState<OpenMat[]>([]);
   const [omCounts, setOmCounts] = useState<Record<string, number>>({});
   const [joinReqs, setJoinReqs] = useState<{ user_id: string; profiles: MiniProfile }[]>([]);
@@ -422,6 +423,7 @@ function GroupDetailInner() {
 
   const saveSession = async () => {
     if (!user || !form.title.trim()) return;
+    setFormError("");
     const payload = {
       title: form.title, description: form.description,
       date: form.recurring ? null : form.date,
@@ -429,11 +431,10 @@ function GroupDetailInner() {
       recurring: form.recurring, day_of_week: form.recurring ? form.day_of_week : null,
       positions: form.positions,
     };
-    if (editingId) {
-      await sb.from("trainer_sessions").update(payload).eq("id", editingId);
-    } else {
-      await sb.from("trainer_sessions").insert({ ...payload, group_id: id, trainer_id: user.id });
-    }
+    const { error } = editingId
+      ? await sb.from("trainer_sessions").update(payload).eq("id", editingId)
+      : await sb.from("trainer_sessions").insert({ ...payload, group_id: id, trainer_id: user.id });
+    if (error) { setFormError(error.message); return; }
     setShowForm(false);
     setEditingId(null);
     resetForm();
@@ -553,9 +554,9 @@ function GroupDetailInner() {
               <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))}
                 placeholder="Session title (e.g. Guard Passing)"
                 className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600" />
-              {/* Positions drilled (default for every occurrence; editable per day) */}
+              {/* Positions drilled for this class */}
               <div>
-                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Positions <span className="text-zinc-600 normal-case">· default, editable per day</span></p>
+                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Positions</p>
                 <div className="flex flex-wrap gap-1.5">
                   {positionTags.map(p => {
                     const on = form.positions.includes(p);
@@ -602,8 +603,9 @@ function GroupDetailInner() {
                 </button>
               </div>
 
+              {formError && <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{formError}</p>}
               <div className="flex gap-2">
-                <button onClick={()=>{ setShowForm(false); setEditingId(null); }} className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-400 text-sm">Cancel</button>
+                <button onClick={()=>{ setShowForm(false); setEditingId(null); setFormError(""); }} className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-400 text-sm">Cancel</button>
                 <button onClick={saveSession} disabled={!form.title.trim()}
                   className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold disabled:opacity-30">{editingId ? "Save" : "Schedule"}</button>
               </div>
