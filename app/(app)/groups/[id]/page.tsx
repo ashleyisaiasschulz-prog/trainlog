@@ -82,6 +82,8 @@ function GroupDetailInner() {
   const [joinReqs, setJoinReqs] = useState<{ user_id: string; profiles: MiniProfile }[]>([]);
   const [noteEntries, setNoteEntries] = useState<Record<string, { id: string; text: string; created_at: string }[]>>({});
   const [newNoteText, setNewNoteText] = useState("");
+  const [editingEntry, setEditingEntry] = useState<string | null>(null);
+  const [editEntryText, setEditEntryText] = useState("");
   const [promoteBelt, setPromoteBelt] = useState<string>("white");
   const [promoteStripes, setPromoteStripes] = useState<number>(0);
   const [addressInput, setAddressInput] = useState("");
@@ -240,6 +242,12 @@ function GroupDetailInner() {
   };
   const deleteNoteEntry = async (entryId: string) => {
     await sb.from("coach_note_entries").delete().eq("id", entryId);
+    await load();
+  };
+  const updateNoteEntry = async (entryId: string) => {
+    if (!editEntryText.trim()) return;
+    await sb.from("coach_note_entries").update({ text: editEntryText.trim() }).eq("id", entryId);
+    setEditingEntry(null);
     await load();
   };
 
@@ -1161,7 +1169,7 @@ function GroupDetailInner() {
 
                       {/* Dated notes log */}
                       <div>
-                        <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1">Notes</p>
+                        <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Notes</p>
                         <div className="flex gap-2">
                           <input value={newNoteText} onChange={e => setNewNoteText(e.target.value)}
                             onKeyDown={e => e.key === "Enter" && addNoteEntry(m.user_id)}
@@ -1173,12 +1181,26 @@ function GroupDetailInner() {
                         {entries.length > 0 && (
                           <div className="mt-2 space-y-1.5">
                             {entries.map(en => (
-                              <div key={en.id} className="flex items-start gap-2 group">
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs text-zinc-300">{en.text}</p>
-                                  <p className="text-[10px] text-zinc-600">{format(new Date(en.created_at), "MMM d, yyyy · HH:mm")}</p>
-                                </div>
-                                <button onClick={() => deleteNoteEntry(en.id)} className="text-zinc-700 hover:text-red-500 p-0.5 shrink-0"><X size={12}/></button>
+                              <div key={en.id} className="bg-zinc-800/40 rounded-xl px-3 py-2">
+                                {editingEntry === en.id ? (
+                                  <div className="space-y-1.5">
+                                    <textarea value={editEntryText} onChange={e => setEditEntryText(e.target.value)} rows={2}
+                                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-600 resize-none" />
+                                    <div className="flex gap-2 justify-end">
+                                      <button onClick={() => setEditingEntry(null)} className="text-[11px] text-zinc-500 hover:text-zinc-300">Cancel</button>
+                                      <button onClick={() => updateNoteEntry(en.id)} className="text-[11px] font-semibold text-red-400 hover:text-red-300">Save</button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-start gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs text-zinc-200 leading-snug">{en.text}</p>
+                                      <p className="text-[10px] text-zinc-600 mt-0.5">{format(new Date(en.created_at), "MMM d, yyyy · HH:mm")}</p>
+                                    </div>
+                                    <button onClick={() => { setEditingEntry(en.id); setEditEntryText(en.text); }} className="text-zinc-600 hover:text-zinc-300 p-0.5 shrink-0"><Pencil size={11}/></button>
+                                    <button onClick={() => deleteNoteEntry(en.id)} className="text-zinc-600 hover:text-red-500 p-0.5 shrink-0"><X size={12}/></button>
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
