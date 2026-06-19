@@ -48,11 +48,14 @@ export default function DashboardPage() {
     else if (i > 0) break;
   }
 
+  const isBlack     = currentBelt === "black";
   const nextBeltIdx = BELT_ORDER.indexOf(currentBelt) + 1;
   const nextBelt    = nextBeltIdx < BELT_ORDER.length ? BELT_ORDER[nextBeltIdx] : null;
-  const milestone   = currentStripes < 4
-    ? `${4 - currentStripes} stripe${4 - currentStripes !== 1 ? "s" : ""} to go`
-    : nextBelt ? `Ready for ${BELT_LABELS[nextBelt]}` : "Black Belt";
+  const milestone   = isBlack
+    ? "Highest rank"
+    : currentStripes < 4
+      ? `${4 - currentStripes} stripe${4 - currentStripes !== 1 ? "s" : ""} to go`
+      : nextBelt ? `Ready for ${BELT_LABELS[nextBelt]}` : "Black Belt";
 
   const beltTime = timeInBelt(promotions, currentBelt);
 
@@ -117,7 +120,7 @@ export default function DashboardPage() {
               <p className="text-sm font-semibold text-zinc-300">{beltTime ?? "—"}</p>
             </div>
             <div>
-              <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-0.5">Next</p>
+              <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-0.5">{isBlack ? "Rank" : "Next"}</p>
               <p className="text-sm font-semibold text-red-400">{milestone}</p>
             </div>
           </div>
