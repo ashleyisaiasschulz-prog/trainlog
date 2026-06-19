@@ -94,7 +94,7 @@ function GroupDetailInner() {
   const [form, setForm] = useState({
     title: "", description: "", focus: "", date: format(new Date(), "yyyy-MM-dd"),
     time: "19:00", duration: 90, gi: true, recurring: false, day_of_week: 2,
-    positions: [] as string[], occNotes: "", capacity: 0,
+    positions: [] as string[], capacity: 0,
   });
   const [editingDate, setEditingDate] = useState<string | null>(null);
   const positionTags = useTagStore((s) => s.positions);
@@ -354,10 +354,9 @@ function GroupDetailInner() {
     return out;
   };
 
-  // Positions are set once at the class level (creation form). Notes are per day.
+  // Positions and notes are class fields. Per-day changes split into a one-off.
   const effPositions = (s: TrainerSession) => s.positions ?? [];
-  const effFocus = (s: TrainerSession, date: string) =>
-    occOverrides[`${s.id}-${date}`]?.focus ?? null;
+  const effFocus = (s: TrainerSession) => s.focus ?? null;
 
   const saveAddress = async () => {
     if (!addressInput.trim()) return;
@@ -412,12 +411,11 @@ function GroupDetailInner() {
     setForm({
       title: "", description: "", focus: "", date: format(new Date(), "yyyy-MM-dd"),
       time: "19:00", duration: 90, gi: true, recurring: false, day_of_week: 2,
-      positions: [], occNotes: "", capacity: 0,
+      positions: [], capacity: 0,
     });
 
   const startCreate = () => { setEditingId(null); setEditingDate(null); setFormError(""); resetForm(); setShowForm(true); };
 
-  // Edit everything for an occurrence: class fields + that day's notes.
   const startEdit = (s: TrainerSession, date: string) => {
     setEditingId(s.id);
     setEditingDate(date);
@@ -427,7 +425,7 @@ function GroupDetailInner() {
       date: s.date ?? format(new Date(), "yyyy-MM-dd"),
       time: (s.time ?? "19:00").slice(0, 5), duration: s.duration ?? 90, gi: s.gi,
       recurring: s.recurring, day_of_week: s.day_of_week ?? 2,
-      positions: s.positions ?? [], occNotes: effFocus(s, date) ?? "", capacity: s.capacity ?? 0,
+      positions: s.positions ?? [], capacity: s.capacity ?? 0,
     });
     setShowForm(true);
   };
@@ -435,27 +433,36 @@ function GroupDetailInner() {
   const togglePosition = (p: string) =>
     setForm(f => ({ ...f, positions: f.positions.includes(p) ? f.positions.filter(x => x !== p) : [...f.positions, p] }));
 
-  const saveSession = async () => {
+  // scope: "day" = split this occurrence into a one-off; "all" = edit the series.
+  const saveSession = async (scope?: "day" | "all") => {
     if (!user || !form.title.trim()) return;
     setFormError("");
-    const payload = {
-      title: form.title, description: form.description,
-      date: form.recurring ? null : form.date,
+    const fields = {
+      title: form.title, description: form.description, focus: form.focus,
       time: form.time, duration: form.duration, gi: form.gi,
-      recurring: form.recurring, day_of_week: form.recurring ? form.day_of_week : null,
       positions: form.positions, capacity: form.capacity || null,
     };
-    const { error } = editingId
-      ? await sb.from("trainer_sessions").update(payload).eq("id", editingId)
-      : await sb.from("trainer_sessions").insert({ ...payload, group_id: id, trainer_id: user.id });
-    if (error) { setFormError(error.message); return; }
-    // Per-day notes (only when editing a specific occurrence)
-    if (editingId && editingDate) {
+    let error = null;
+    if (editingId && form.recurring && scope === "day" && editingDate) {
+      // Split: cancel this occurrence of the series + create a one-off for it.
       await sb.from("session_occurrences").upsert(
-        { group_id: id, trainer_session_id: editingId, date: editingDate, focus: form.occNotes || null },
-        { onConflict: "trainer_session_id,date" }
-      );
+        { group_id: id, trainer_session_id: editingId, date: editingDate, cancelled: true },
+        { onConflict: "trainer_session_id,date" });
+      ({ error } = await sb.from("trainer_sessions").insert({
+        ...fields, group_id: id, trainer_id: user.id, date: editingDate, recurring: false, day_of_week: null }));
+    } else if (editingId) {
+      ({ error } = await sb.from("trainer_sessions").update({
+        ...fields, date: form.recurring ? null : form.date,
+        recurring: form.recurring, day_of_week: form.recurring ? form.day_of_week : null,
+      }).eq("id", editingId));
+    } else {
+      ({ error } = await sb.from("trainer_sessions").insert({
+        ...fields, group_id: id, trainer_id: user.id,
+        date: form.recurring ? null : form.date,
+        recurring: form.recurring, day_of_week: form.recurring ? form.day_of_week : null,
+      }));
     }
+    if (error) { setFormError(error.message); return; }
     setShowForm(false);
     setEditingId(null);
     setEditingDate(null);
@@ -560,35 +567,29 @@ function GroupDetailInner() {
 
       {/* Announcements (broadcast) */}
       {(announcements.length > 0 || canCoach) && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-2.5">
-          <p className="text-[11px] font-semibold text-amber-400 uppercase tracking-widest flex items-center gap-1.5"><Megaphone size={12}/> Announcements</p>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2.5 space-y-2">
           {canCoach && (
             <div className="flex gap-2">
               <input value={newAnnouncement} onChange={e => setNewAnnouncement(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && postAnnouncement()}
-                placeholder="Post to all members…"
-                className="flex-1 bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600" />
+                placeholder="Announce to members…"
+                className="flex-1 bg-zinc-800/60 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600" />
               <button onClick={postAnnouncement} disabled={!newAnnouncement.trim()}
-                className="bg-amber-500 hover:bg-amber-400 text-zinc-950 px-4 rounded-xl text-xs font-bold disabled:opacity-30">Post</button>
+                className="bg-amber-500 hover:bg-amber-400 text-zinc-950 px-3 rounded-lg text-xs font-bold disabled:opacity-30">Post</button>
             </div>
           )}
-          {announcements.length === 0 ? (
-            <p className="text-xs text-zinc-600">No announcements yet.</p>
-          ) : (
-            <div className="space-y-1.5">
-              {announcements.map(an => (
-                <div key={an.id} className="flex items-start gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-zinc-200">{an.text}</p>
-                    <p className="text-[10px] text-zinc-600">{nameOf(an.author_id)} · {format(new Date(an.created_at), "MMM d, HH:mm")}</p>
-                  </div>
-                  {canCoach && (
-                    <button onClick={() => deleteAnnouncement(an.id)} className="text-zinc-700 hover:text-red-500 p-0.5 shrink-0"><X size={12}/></button>
-                  )}
-                </div>
-              ))}
+          {announcements.slice(0, 3).map(an => (
+            <div key={an.id} className="flex items-start gap-2">
+              <Megaphone size={12} className="text-amber-400 mt-1 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-zinc-200 leading-snug">{an.text}</p>
+                <p className="text-[10px] text-zinc-600">{nameOf(an.author_id)} · {format(new Date(an.created_at), "MMM d, HH:mm")}</p>
+              </div>
+              {canCoach && (
+                <button onClick={() => deleteAnnouncement(an.id)} className="text-zinc-700 hover:text-red-500 p-0.5 shrink-0"><X size={12}/></button>
+              )}
             </div>
-          )}
+          ))}
         </div>
       )}
 
@@ -680,26 +681,42 @@ function GroupDetailInner() {
                 </button>
               </div>
 
-              <input type="number" min={0} value={form.capacity} onChange={e=>setForm(f=>({...f,capacity:Number(e.target.value)}))}
-                placeholder="Max spots (0 = unlimited)"
-                className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600" />
+              <div>
+                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Class limit</p>
+                <input type="number" min={0} value={form.capacity} onChange={e=>setForm(f=>({...f,capacity:Number(e.target.value)}))}
+                  placeholder="Max spots — leave 0 for unlimited"
+                  className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600" />
+              </div>
 
-              {/* Notes for the specific day being edited */}
-              {editingDate && (
-                <div>
-                  <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Notes · {format(new Date(editingDate+"T12:00:00"),"EEE, MMM d")}</p>
-                  <textarea value={form.occNotes} onChange={e=>setForm(f=>({...f,occNotes:e.target.value}))}
-                    placeholder="Notes for this day (e.g. Single Leg X)" rows={2}
-                    className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 resize-none" />
-                </div>
-              )}
+              <div>
+                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Notes</p>
+                <textarea value={form.focus} onChange={e=>setForm(f=>({...f,focus:e.target.value}))}
+                  placeholder="What's the focus? (e.g. Single Leg X, guard retention)" rows={2}
+                  className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 resize-none" />
+              </div>
 
               {formError && <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{formError}</p>}
-              <div className="flex gap-2">
-                <button onClick={()=>{ setShowForm(false); setEditingId(null); setEditingDate(null); setFormError(""); }} className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-400 text-sm">Cancel</button>
-                <button onClick={saveSession} disabled={!form.title.trim()}
-                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold disabled:opacity-30">{editingId ? "Save" : "Schedule"}</button>
-              </div>
+
+              {/* Editing a recurring class → choose scope */}
+              {editingId && form.recurring && editingDate ? (
+                <div className="space-y-2">
+                  <p className="text-[11px] text-zinc-500">Apply changes to:</p>
+                  <div className="flex gap-2">
+                    <button onClick={()=>{ setShowForm(false); setEditingId(null); setEditingDate(null); setFormError(""); }}
+                      className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-400 text-sm">Cancel</button>
+                    <button onClick={()=>saveSession("day")} disabled={!form.title.trim()}
+                      className="flex-1 py-2.5 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-zinc-100 text-sm font-semibold disabled:opacity-30">Just {format(new Date(editingDate+"T12:00:00"),"MMM d")}</button>
+                    <button onClick={()=>saveSession("all")} disabled={!form.title.trim()}
+                      className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold disabled:opacity-30">All weekly</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <button onClick={()=>{ setShowForm(false); setEditingId(null); setEditingDate(null); setFormError(""); }} className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-400 text-sm">Cancel</button>
+                  <button onClick={()=>saveSession()} disabled={!form.title.trim()}
+                    className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold disabled:opacity-30">{editingId ? "Save" : "Schedule"}</button>
+                </div>
+              )}
             </div>
           )}
 
@@ -749,7 +766,7 @@ function GroupDetailInner() {
                           {/* Planned positions for THIS date — tap to see notes */}
                           {(() => {
                             const pos = effPositions(s);
-                            const notes = effFocus(s, date);
+                            const notes = effFocus(s);
                             const expanded = expandedOcc === key;
                             if (pos.length === 0 && !notes) return null;
                             return (
