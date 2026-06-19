@@ -157,8 +157,8 @@ export default function DashboardPage() {
           <Swords size={17} className="text-red-400" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-zinc-200">Skill Tree</p>
-          <p className="text-[10px] text-zinc-600">Level up every position you train</p>
+          <p className="text-xs font-semibold text-zinc-200">Grappler Profile</p>
+          <p className="text-[10px] text-zinc-600">Level up every technique you train</p>
         </div>
         <ChevronRight size={16} className="text-zinc-700 shrink-0" />
       </Link>
