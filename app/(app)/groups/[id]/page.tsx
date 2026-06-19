@@ -1331,6 +1331,7 @@ function GymInsights({ attendance, members, sessions, coachNotes }: {
 
   return (
     <div className="space-y-4">
+      <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em] pl-1">Overview</p>
       {/* ── KPI grid ── */}
       <div className="grid grid-cols-2 gap-3">
         <Kpi value={checkinsMonth} label="Check-ins this month" accent />
@@ -1354,6 +1355,8 @@ function GymInsights({ attendance, members, sessions, coachNotes }: {
           ))}
         </div>
       </div>
+
+      <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em] pt-1 pl-1">Retention</p>
 
       {/* ── Retention radar ── */}
       <div className="bg-zinc-900 border border-amber-500/20 rounded-2xl p-4 space-y-3">
@@ -1407,6 +1410,8 @@ function GymInsights({ attendance, members, sessions, coachNotes }: {
           </div>
         )}
       </div>
+
+      <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em] pt-1 pl-1">Classes &amp; curriculum</p>
 
       {/* ── Class performance ── */}
       {classRows.length > 0 && (
@@ -1467,6 +1472,8 @@ function GymInsights({ attendance, members, sessions, coachNotes }: {
           ))}
         </div>
       </div>
+
+      <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em] pt-1 pl-1">Members</p>
 
       {/* ── Promotion board ── */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
@@ -1602,12 +1609,13 @@ function GroupLeaderboard({ members, currentUserId, isGym, attendance }: {
   }
 
   const monthLabel = format(new Date(), "MMMM yyyy");
+  const maxCount = Math.max(1, ...ranked.map(m => counts[m.user_id] ?? 0));
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
+    <div className="space-y-2">
+      <div className="flex items-center justify-between mb-1">
         <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">
-          {isGym ? "Classes Attended This Month" : "Sessions This Month"}
+          {isGym ? "Classes Attended" : "Sessions"}
         </p>
         <p className="text-[11px] text-zinc-600">{monthLabel}</p>
       </div>
@@ -1617,12 +1625,12 @@ function GroupLeaderboard({ members, currentUserId, isGym, attendance }: {
         const isMe  = m.user_id === currentUserId;
         return (
           <div key={m.user_id}
-            className={`flex items-center gap-3 rounded-2xl px-4 py-3 border ${
+            className={`flex items-center gap-3 rounded-2xl px-3.5 py-2.5 border ${
               isMe ? "bg-red-950/20 border-red-500/30" : "bg-zinc-900 border-zinc-800"
             }`}>
-            <div className="w-6 flex items-center justify-center shrink-0">
+            <div className="w-5 flex items-center justify-center shrink-0">
               {medalColor ? <Award size={16} className={medalColor} />
-                : <span className="text-xs font-bold text-zinc-600">#{idx + 1}</span>}
+                : <span className="text-xs font-bold text-zinc-600">{idx + 1}</span>}
             </div>
             <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
               {(m.profiles?.display_name || m.profiles?.username || "?")[0].toUpperCase()}
@@ -1632,11 +1640,14 @@ function GroupLeaderboard({ members, currentUserId, isGym, attendance }: {
                 {m.profiles?.display_name || m.profiles?.username}
                 {isMe && <span className="text-xs text-red-400 font-normal ml-1">(you)</span>}
               </p>
-              <p className="text-xs text-zinc-500 capitalize">{m.profiles?.belt} belt</p>
+              <div className="mt-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full ${isMe ? "bg-red-500" : medalColor ? "bg-amber-500/70" : "bg-zinc-600"}`}
+                  style={{ width: `${(count / maxCount) * 100}%` }} />
+              </div>
             </div>
-            <div className="shrink-0 text-right">
-              <p className="text-lg font-black tabular-nums text-zinc-100">{count}</p>
-              <p className="text-[10px] text-zinc-600">{isGym ? (count === 1 ? "class" : "classes") : (count === 1 ? "session" : "sessions")}</p>
+            <div className="shrink-0 text-right w-10">
+              <p className="text-lg font-black tabular-nums text-zinc-100 leading-none">{count}</p>
+              <p className="text-[9px] text-zinc-600 mt-0.5">{isGym ? "classes" : "sessions"}</p>
             </div>
           </div>
         );
