@@ -72,8 +72,6 @@ function GroupDetailInner() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [occOverrides, setOccOverrides] = useState<Record<string, { focus: string | null; positions: string[]; cancelled?: boolean }>>({});
-  const [editingOcc, setEditingOcc] = useState<string | null>(null);
-  const [occForm, setOccForm] = useState<{ focus: string; positions: string[] }>({ focus: "", positions: [] });
   const [expandedOcc, setExpandedOcc] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
@@ -92,8 +90,9 @@ function GroupDetailInner() {
   const [form, setForm] = useState({
     title: "", description: "", focus: "", date: format(new Date(), "yyyy-MM-dd"),
     time: "19:00", duration: 90, gi: true, recurring: false, day_of_week: 2,
-    positions: [] as string[],
+    positions: [] as string[], occNotes: "",
   });
+  const [editingDate, setEditingDate] = useState<string | null>(null);
   const positionTags = useTagStore((s) => s.positions);
 
   const isGym   = !!group?.is_gym;
@@ -335,19 +334,6 @@ function GroupDetailInner() {
   const effFocus = (s: TrainerSession, date: string) =>
     occOverrides[`${s.id}-${date}`]?.focus ?? null;
 
-  const startOccEdit = (s: TrainerSession, date: string) => {
-    setEditingOcc(`${s.id}-${date}`);
-    setOccForm({ focus: effFocus(s, date) ?? "", positions: effPositions(s) });
-  };
-  const saveOcc = async (sid: string, date: string) => {
-    await sb.from("session_occurrences").upsert(
-      { group_id: id, trainer_session_id: sid, date, focus: occForm.focus },
-      { onConflict: "trainer_session_id,date" }
-    );
-    setEditingOcc(null);
-    await load();
-  };
-
   const saveAddress = async () => {
     if (!addressInput.trim()) return;
     setAddressBusy(true); setAddressErr(""); setAddressResolved("");
@@ -401,19 +387,22 @@ function GroupDetailInner() {
     setForm({
       title: "", description: "", focus: "", date: format(new Date(), "yyyy-MM-dd"),
       time: "19:00", duration: 90, gi: true, recurring: false, day_of_week: 2,
-      positions: [],
+      positions: [], occNotes: "",
     });
 
-  const startCreate = () => { setEditingId(null); resetForm(); setShowForm(true); };
+  const startCreate = () => { setEditingId(null); setEditingDate(null); setFormError(""); resetForm(); setShowForm(true); };
 
-  const startEdit = (s: TrainerSession) => {
+  // Edit everything for an occurrence: class fields + that day's notes.
+  const startEdit = (s: TrainerSession, date: string) => {
     setEditingId(s.id);
+    setEditingDate(date);
+    setFormError("");
     setForm({
       title: s.title, description: s.description ?? "", focus: s.focus ?? "",
       date: s.date ?? format(new Date(), "yyyy-MM-dd"),
       time: (s.time ?? "19:00").slice(0, 5), duration: s.duration ?? 90, gi: s.gi,
       recurring: s.recurring, day_of_week: s.day_of_week ?? 2,
-      positions: s.positions ?? [],
+      positions: s.positions ?? [], occNotes: effFocus(s, date) ?? "",
     });
     setShowForm(true);
   };
@@ -435,8 +424,16 @@ function GroupDetailInner() {
       ? await sb.from("trainer_sessions").update(payload).eq("id", editingId)
       : await sb.from("trainer_sessions").insert({ ...payload, group_id: id, trainer_id: user.id });
     if (error) { setFormError(error.message); return; }
+    // Per-day notes (only when editing a specific occurrence)
+    if (editingId && editingDate) {
+      await sb.from("session_occurrences").upsert(
+        { group_id: id, trainer_session_id: editingId, date: editingDate, focus: form.occNotes || null },
+        { onConflict: "trainer_session_id,date" }
+      );
+    }
     setShowForm(false);
     setEditingId(null);
+    setEditingDate(null);
     resetForm();
     await load();
   };
@@ -603,9 +600,19 @@ function GroupDetailInner() {
                 </button>
               </div>
 
+              {/* Notes for the specific day being edited */}
+              {editingDate && (
+                <div>
+                  <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Notes · {format(new Date(editingDate+"T12:00:00"),"EEE, MMM d")}</p>
+                  <textarea value={form.occNotes} onChange={e=>setForm(f=>({...f,occNotes:e.target.value}))}
+                    placeholder="Notes for this day (e.g. Single Leg X)" rows={2}
+                    className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 resize-none" />
+                </div>
+              )}
+
               {formError && <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{formError}</p>}
               <div className="flex gap-2">
-                <button onClick={()=>{ setShowForm(false); setEditingId(null); setFormError(""); }} className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-400 text-sm">Cancel</button>
+                <button onClick={()=>{ setShowForm(false); setEditingId(null); setEditingDate(null); setFormError(""); }} className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-400 text-sm">Cancel</button>
                 <button onClick={saveSession} disabled={!form.title.trim()}
                   className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold disabled:opacity-30">{editingId ? "Save" : "Schedule"}</button>
               </div>
@@ -651,11 +658,7 @@ function GroupDetailInner() {
                             const pos = effPositions(s);
                             const notes = effFocus(s, date);
                             const expanded = expandedOcc === key;
-                            if (pos.length === 0 && !notes) {
-                              return canCoach ? (
-                                <button onClick={()=>startOccEdit(s, date)} className="mt-2 text-[11px] text-zinc-500 hover:text-zinc-300">+ Add notes for this day</button>
-                              ) : null;
-                            }
+                            if (pos.length === 0 && !notes) return null;
                             return (
                               <div className="mt-2">
                                 <button onClick={()=>setExpandedOcc(expanded ? null : key)}
@@ -672,20 +675,6 @@ function GroupDetailInner() {
                               </div>
                             );
                           })()}
-
-                          {/* Coach: notes for THIS day */}
-                          {canCoach && editingOcc === key && (
-                            <div className="mt-2 bg-zinc-800/40 rounded-xl p-3 space-y-2">
-                              <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Notes · {format(new Date(date+"T12:00:00"),"EEE, MMM d")}</p>
-                              <textarea value={occForm.focus} onChange={e=>setOccForm(f=>({...f,focus:e.target.value}))}
-                                placeholder="Notes for this day (e.g. Single Leg X)" rows={2}
-                                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 resize-none" />
-                              <div className="flex gap-2">
-                                <button onClick={()=>setEditingOcc(null)} className="flex-1 py-2 rounded-lg bg-zinc-800 text-zinc-400 text-xs font-semibold">Cancel</button>
-                                <button onClick={()=>saveOcc(s.id, date)} className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-semibold">Save</button>
-                              </div>
-                            </div>
-                          )}
                           {/* Who's coming */}
                           <div className="mt-2.5">
                             {going.length === 0 ? (
@@ -744,10 +733,7 @@ function GroupDetailInner() {
                         </div>
                         {canCoach && (
                           <div className="flex flex-col gap-1 shrink-0">
-                            <button onClick={()=>startOccEdit(s, date)} title="Notes for this day" className="text-zinc-700 hover:text-red-400 p-1">
-                              <Target size={14}/>
-                            </button>
-                            <button onClick={()=>startEdit(s)} title="Edit class" className="text-zinc-700 hover:text-zinc-300 p-1">
+                            <button onClick={()=>startEdit(s, date)} title="Edit" className="text-zinc-700 hover:text-zinc-300 p-1">
                               <Pencil size={14}/>
                             </button>
                             <button onClick={()=> s.recurring ? setConfirmDelete(key) : deleteSession(s.id)} title="Delete" className="text-zinc-700 hover:text-red-500 p-1">
