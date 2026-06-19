@@ -10,6 +10,7 @@ import {
   ResponsiveContainer, Cell, PieChart, Pie, Legend,
 } from "recharts";
 import { format, eachWeekOfInterval, subWeeks, addWeeks, startOfMonth, startOfWeek, subDays } from "date-fns";
+import { Award } from "lucide-react";
 import RangeTabs, { Range, inRange } from "@/components/RangeTabs";
 import { computeStreak } from "@/components/StreakWidget";
 import { Belt, BELT_ORDER, BELT_LABELS, getPlacementCfg } from "@/lib/types";
@@ -368,12 +369,12 @@ export default function StatsPage() {
           {/* Medals */}
           <div className="grid grid-cols-3 gap-3 text-center">
             {[
-              { v: medals.gold,   emoji: "🥇", label: "Gold"   },
-              { v: medals.silver, emoji: "🥈", label: "Silver" },
-              { v: medals.bronze, emoji: "🥉", label: "Bronze" },
-            ].map(({ v, emoji, label }) => (
+              { v: medals.gold,   color: "text-amber-400", label: "Gold"   },
+              { v: medals.silver, color: "text-zinc-300",   label: "Silver" },
+              { v: medals.bronze, color: "text-amber-700",  label: "Bronze" },
+            ].map(({ v, color, label }) => (
               <div key={label} className="bg-zinc-800/50 rounded-xl py-2.5">
-                <p className="text-xl font-bold tabular-nums text-zinc-100">{emoji} {v}</p>
+                <p className="text-xl font-bold tabular-nums text-zinc-100 flex items-center justify-center gap-1.5"><Award size={18} className={color}/> {v}</p>
                 <p className="text-[11px] text-zinc-600 mt-0.5">{label}</p>
               </div>
             ))}

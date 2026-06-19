@@ -52,7 +52,7 @@ export default function DashboardPage() {
   const nextBelt    = nextBeltIdx < BELT_ORDER.length ? BELT_ORDER[nextBeltIdx] : null;
   const milestone   = currentStripes < 4
     ? `${4 - currentStripes} stripe${4 - currentStripes !== 1 ? "s" : ""} to go`
-    : nextBelt ? `Ready for ${BELT_LABELS[nextBelt]}` : "Black Belt 🏆";
+    : nextBelt ? `Ready for ${BELT_LABELS[nextBelt]}` : "Black Belt";
 
   const beltTime = timeInBelt(promotions, currentBelt);
 

@@ -1714,7 +1714,7 @@ function GroupChat({ groupId, userId, nameOf }: { groupId: string; userId: strin
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center gap-2">
             <MessageCircle size={28} className="text-zinc-700"/>
-            <p className="text-sm text-zinc-500">No messages yet — say hi 👋</p>
+            <p className="text-sm text-zinc-500">No messages yet — say hi</p>
           </div>
         ) : messages.map(m => {
           const mine = m.user_id === userId;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Trophy, Loader2, LogIn } from "lucide-react";
+import { ArrowLeft, Trophy, Loader2, LogIn, Award } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -139,16 +139,16 @@ export default function LeaderboardPage() {
       ) : (
         <div className="space-y-2">
           {rows.map((entry, idx) => {
-            const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : null;
+            const medalColor = idx < 3 ? ["text-amber-400", "text-zinc-300", "text-amber-700"][idx] : null;
             return (
               <div key={entry.userId}
                 className={`flex items-center gap-3 bg-zinc-900 border rounded-2xl px-4 py-3 transition-all ${
                   entry.isMe ? "border-red-500/40 bg-red-950/20" : "border-zinc-800"
                 }`}>
                 {/* Rank */}
-                <div className="w-7 text-center shrink-0">
-                  {medal ? (
-                    <span className="text-lg">{medal}</span>
+                <div className="w-7 flex items-center justify-center shrink-0">
+                  {medalColor ? (
+                    <Award size={18} className={medalColor} />
                   ) : (
                     <span className="text-sm font-bold text-zinc-600 tabular-nums">#{idx + 1}</span>
                   )}
