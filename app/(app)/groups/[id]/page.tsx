@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useTagStore } from "@/store/useTagStore";
-import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy, Loader2, Pencil, Settings as SettingsIcon, MapPin } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy, Loader2, Pencil, Settings as SettingsIcon, MapPin, Megaphone, StickyNote, Flame, Award, Hourglass } from "lucide-react";
 import Link from "next/link";
 import { DAY_NAMES_FULL, BELT_COLORS, BELT_ORDER, BELT_LABELS, Belt } from "@/lib/types";
 import { format, differenceInDays, parseISO, startOfWeek, subWeeks } from "date-fns";
@@ -556,7 +556,7 @@ function GroupDetailInner() {
       {/* Announcements (broadcast) */}
       {(announcements.length > 0 || canCoach) && (
         <div className="bg-gradient-to-r from-amber-500/[0.08] to-zinc-900 border border-amber-500/20 rounded-2xl p-4 space-y-2">
-          <p className="text-[11px] font-semibold text-amber-400 uppercase tracking-widest">📢 Announcements</p>
+          <p className="text-[11px] font-semibold text-amber-400 uppercase tracking-widest flex items-center gap-1.5"><Megaphone size={12}/> Announcements</p>
           {canCoach && (
             <div className="flex gap-2">
               <input value={newAnnouncement} onChange={e => setNewAnnouncement(e.target.value)}
@@ -775,7 +775,7 @@ function GroupDetailInner() {
                               </div>
                             )}
                             {waitlist.length > 0 && (
-                              <p className="text-[11px] text-amber-400 mt-1">⏳ {waitlist.length} waitlisted{canCoach ? `: ${waitlist.map(nameOf).join(", ")}` : ""}</p>
+                              <p className="text-[11px] text-amber-400 mt-1 flex items-center gap-1"><Hourglass size={11}/> {waitlist.length} waitlisted{canCoach ? `: ${waitlist.map(nameOf).join(", ")}` : ""}</p>
                             )}
                           </div>
                           {/* Attendance (coach view): who came + no-shows for THIS date */}
@@ -852,7 +852,7 @@ function GroupDetailInner() {
                               : "bg-zinc-800 text-zinc-400"
                             }`}>
                             {mine?.status==="waitlist"
-                              ? <>⏳ Waitlisted</>
+                              ? <><Hourglass size={13}/> Waitlisted</>
                               : <><Check size={13}/> {isFull && mine?.status!=="going" ? "Join waitlist" : "I'll be there"}</>}
                           </button>
                           <button onClick={()=>toggleRsvp(s.id, date, false)}
@@ -1056,7 +1056,6 @@ function GroupDetailInner() {
                 const note = coachNotes[m.user_id];
                 const entries = noteEntries[m.user_id] ?? [];
                 const open = editingNote === m.user_id;
-                const promo = note?.promotion?.trim();
                 return (
                 <div key={m.user_id} className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3">
                   {/* Row — tap to open actions */}
@@ -1079,7 +1078,7 @@ function GroupDetailInner() {
                       <p className="text-xs text-zinc-500 capitalize">{m.profiles?.belt} belt · {m.profiles?.stripes} stripes</p>
                     </div>
                     {canCoach && entries.length > 0 && (
-                      <span className="text-[10px] text-amber-400 shrink-0">📝 {entries.length}</span>
+                      <span className="text-[10px] text-zinc-500 shrink-0 flex items-center gap-1"><StickyNote size={11}/> {entries.length}</span>
                     )}
                     <span className={`text-[10px] text-zinc-600 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}>▼</span>
                   </button>
@@ -1160,13 +1159,6 @@ function GroupDetailInner() {
                     </div>
                   )}
 
-                  {/* Collapsed previews */}
-                  {canCoach && !open && (promo || entries.length > 0) && (
-                    <div className="mt-2 space-y-1">
-                      {promo && <p className="text-xs text-amber-400/90">🥋 {promo}</p>}
-                      {entries[0] && <p className="text-xs text-zinc-500 truncate">{entries[0].text}</p>}
-                    </div>
-                  )}
                 </div>
                 );
               })}
@@ -1359,7 +1351,7 @@ function GymInsights({ attendance, members, sessions, coachNotes }: {
           <p className="text-xs text-zinc-600">Members who were training but haven't shown in 2+ weeks — reach out before they quit</p>
         </div>
         {atRisk.length === 0 ? (
-          <p className="text-xs text-zinc-500">Everyone active is still showing up 🔥</p>
+          <p className="text-xs text-zinc-500">Everyone active is still showing up.</p>
         ) : (
           <div className="flex flex-col gap-2">
             {atRisk.map(({ m, daysSince, total }) => (
@@ -1481,9 +1473,9 @@ function GymInsights({ attendance, members, sessions, coachNotes }: {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-zinc-200 truncate">
-                      {nameOf(m)} <span className="text-[11px] text-zinc-500 capitalize">· {m.profiles?.belt} {m.profiles?.stripes ? `${m.profiles.stripes}★` : ""}</span>
+                      {nameOf(m)} <span className="text-[11px] text-zinc-500 capitalize">· {m.profiles?.belt}{m.profiles?.stripes ? ` ${m.profiles.stripes}` : ""}</span>
                     </p>
-                    {note ? <p className="text-[11px] text-amber-400/90">🥋 {note}</p>
+                    {note ? <p className="text-[11px] text-amber-400/90 flex items-start gap-1"><Award size={11} className="mt-0.5 shrink-0"/> {note}</p>
                           : <p className="text-[10px] text-zinc-600">{total} check-ins · {last30} last 30d</p>}
                   </div>
                 </div>
@@ -1518,22 +1510,22 @@ function MyAttendanceCard({ attendance, userId }: {
   while (weeks.has(format(cursor, "yyyy-MM-dd"))) { streak++; cursor = subWeeks(cursor, 1); }
 
   const BADGES = [
-    { n: 10, e: "🥉", label: "10 classes" },
-    { n: 25, e: "🥈", label: "25 classes" },
-    { n: 50, e: "🥇", label: "50 classes" },
-    { n: 100, e: "🏆", label: "100 classes" },
-    { n: 250, e: "💎", label: "250 classes" },
+    { n: 10,  color: "text-amber-700" },
+    { n: 25,  color: "text-zinc-300" },
+    { n: 50,  color: "text-amber-400" },
+    { n: 100, color: "text-cyan-300" },
+    { n: 250, color: "text-violet-300" },
   ];
 
   return (
-    <div className="bg-gradient-to-br from-red-500/[0.08] to-zinc-900 border border-red-500/20 rounded-2xl p-4 space-y-3">
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
       <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest">Your attendance</p>
       <div className="grid grid-cols-2 gap-3 text-center">
-        <div className="bg-zinc-900/60 rounded-xl p-3">
-          <p className="text-2xl font-black text-amber-400 tabular-nums">🔥 {streak}</p>
+        <div className="bg-zinc-800/40 rounded-xl p-3">
+          <p className="text-2xl font-black text-amber-400 tabular-nums flex items-center justify-center gap-1.5"><Flame size={20}/> {streak}</p>
           <p className="text-[11px] text-zinc-500 mt-0.5">week streak</p>
         </div>
-        <div className="bg-zinc-900/60 rounded-xl p-3">
+        <div className="bg-zinc-800/40 rounded-xl p-3">
           <p className="text-2xl font-black text-zinc-100 tabular-nums">{total}</p>
           <p className="text-[11px] text-zinc-500 mt-0.5">total check-ins</p>
         </div>
@@ -1542,10 +1534,10 @@ function MyAttendanceCard({ attendance, userId }: {
         {BADGES.map(b => {
           const earned = total >= b.n;
           return (
-            <div key={b.n} title={b.label}
-              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${earned ? "bg-amber-500/10 text-amber-300" : "bg-zinc-800/60 text-zinc-700"}`}>
-              <span className={earned ? "" : "grayscale opacity-50"}>{b.e}</span>
-              <span className="text-[10px] font-semibold">{b.n}</span>
+            <div key={b.n} title={`${b.n} classes`}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${earned ? "bg-zinc-800" : "bg-zinc-800/40"}`}>
+              <Award size={13} className={earned ? b.color : "text-zinc-700"} />
+              <span className={`text-[10px] font-semibold ${earned ? "text-zinc-300" : "text-zinc-700"}`}>{b.n}</span>
             </div>
           );
         })}
@@ -1610,15 +1602,15 @@ function GroupLeaderboard({ members, currentUserId, isGym, attendance }: {
       </div>
       {ranked.map((m, idx) => {
         const count = counts[m.user_id] ?? 0;
-        const medal = idx === 0 && count > 0 ? "🥇" : idx === 1 && count > 0 ? "🥈" : idx === 2 && count > 0 ? "🥉" : null;
+        const medalColor = count > 0 && idx < 3 ? ["text-amber-400", "text-zinc-300", "text-amber-700"][idx] : null;
         const isMe  = m.user_id === currentUserId;
         return (
           <div key={m.user_id}
             className={`flex items-center gap-3 rounded-2xl px-4 py-3 border ${
               isMe ? "bg-red-950/20 border-red-500/30" : "bg-zinc-900 border-zinc-800"
             }`}>
-            <div className="w-6 text-center shrink-0">
-              {medal ? <span className="text-base">{medal}</span>
+            <div className="w-6 flex items-center justify-center shrink-0">
+              {medalColor ? <Award size={16} className={medalColor} />
                 : <span className="text-xs font-bold text-zinc-600">#{idx + 1}</span>}
             </div>
             <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>

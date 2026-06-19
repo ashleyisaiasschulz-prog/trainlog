@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTrainingStore } from "@/store/useTrainingStore";
 import { useTagStore } from "@/store/useTagStore";
-import { ArrowLeft, Lock, Trophy } from "lucide-react";
+import { ArrowLeft, Lock, Trophy, Shield, Target, Repeat, DoorOpen, LucideIcon } from "lucide-react";
 
 // XP thresholds per level (index = level). Level 0 = locked.
 const TIERS = [0, 1, 3, 7, 14, 25, 40, 60, 90, 130, 180];
@@ -49,20 +49,20 @@ export default function SkillsPage() {
     const swpXp = tally(sessions.map(s => s.sweepsGiven));
     const escXp = tally(sessions.map(s => s.escapesGiven));
 
-    const build = (label: string, icon: string, accent: Accent, palette: string[], xpMap: Record<string, number>) => {
+    const build = (label: string, Icon: LucideIcon, accent: Accent, palette: string[], xpMap: Record<string, number>) => {
       const names = Array.from(new Set([...palette, ...Object.keys(xpMap)]));
       const skills = names.map(name => {
         const xp = xpMap[name] ?? 0;
         return { name, xp, level: levelOf(xp), progress: progressOf(xp) };
       }).sort((a, b) => b.xp - a.xp || a.name.localeCompare(b.name));
-      return { label, icon, accent, skills };
+      return { label, Icon, accent, skills };
     };
 
     const branches = [
-      build("Positions & Control", "🛡️", "blue",    tags.positions,   posXp),
-      build("Submissions",          "🎯", "emerald", tags.submissions, subXp),
-      build("Sweeps",               "🔄", "violet",  tags.sweeps,      swpXp),
-      build("Escapes",              "🚪", "amber",   tags.escapes,     escXp),
+      build("Positions & Control", Shield,  "blue",    tags.positions,   posXp),
+      build("Submissions",          Target,  "emerald", tags.submissions, subXp),
+      build("Sweeps",               Repeat,  "violet",  tags.sweeps,      swpXp),
+      build("Escapes",              DoorOpen, "amber",  tags.escapes,     escXp),
     ];
 
     const all = branches.flatMap(b => b.skills);
@@ -116,7 +116,7 @@ export default function SkillsPage() {
         return (
           <div key={branch.label} className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-base">{branch.icon}</span>
+              <branch.Icon size={15} className={a.text} />
               <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest">{branch.label}</p>
             </div>
             <div className="grid gap-2">

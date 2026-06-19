@@ -6,7 +6,7 @@ import BeltBadge from "@/components/BeltBadge";
 import ScheduleWidget from "@/components/ScheduleWidget";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, ChevronRight, Timer, BookOpen, HeartPulse, CalendarDays, Trophy, QrCode, Swords } from "lucide-react";
+import { Plus, ChevronRight, Timer, BookOpen, HeartPulse, CalendarDays, Trophy, QrCode, Swords, Flame } from "lucide-react";
 import { BELT_ORDER, BELT_LABELS } from "@/lib/types";
 import { differenceInYears, differenceInDays, format, subDays } from "date-fns";
 import { useState } from "react";
@@ -74,8 +74,8 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2 mt-0.5">
             <p className="text-xs text-zinc-500">Your BJJ journey</p>
             {dayStreak >= 1 && (
-              <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                🔥 {dayStreak}d
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                <Flame size={11}/> {dayStreak}d
               </span>
             )}
           </div>
