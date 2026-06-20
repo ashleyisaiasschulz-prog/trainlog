@@ -264,13 +264,13 @@ function GroupDetailInner() {
 
   useEffect(() => { load(); }, [user, id]);
 
-  // Default to the Plan tab in a gym (Board for social groups). Runs once.
+  // Default to the Plan tab in a gym (Board for social groups). Set during
+  // render (before paint) so the page doesn't flash the wrong tab on open.
   const tabInitRef = useRef(false);
-  useEffect(() => {
-    if (!group || tabInitRef.current) return;
+  if (group && !tabInitRef.current) {
     tabInitRef.current = true;
     if (group.is_gym) setTab("sessions");
-  }, [group]);
+  }
 
   useEffect(() => { if (group) setAddressInput(group.address ?? ""); }, [group?.address]);
   useEffect(() => { if (group) { setGymName(group.name ?? ""); setGymDesc(group.description ?? ""); } }, [group?.id]);

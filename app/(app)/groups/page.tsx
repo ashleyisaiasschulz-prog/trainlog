@@ -30,6 +30,7 @@ function GymsInner() {
   const [error, setError]         = useState("");
   const [loading, setLoading]     = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [loaded, setLoaded]       = useState(false);
   const sb = createClient();
 
   const loadGyms = async () => {
@@ -41,6 +42,7 @@ function GymsInner() {
     const all = (data?.map((d: any) => d.groups).filter(Boolean) ?? []) as Group[];
     const myGyms = all.filter(g => g.is_gym);
     setGyms(myGyms);
+    setLoaded(true);
     // Cache ids so the nav can link straight to the gym (no redirect hop)
     useGymStore.getState().setGymIds(myGyms.map(g => g.id));
   };
@@ -177,7 +179,9 @@ function GymsInner() {
       )}
 
       {/* Gym list */}
-      {gyms.length === 0 ? (
+      {!loaded ? (
+        <div className="py-10 text-center"><Loader2 className="animate-spin text-zinc-600 mx-auto" /></div>
+      ) : gyms.length === 0 ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
           <Building2 size={28} className="text-zinc-700 mx-auto mb-3"/>
           <p className="text-sm font-medium text-zinc-400">You're not in a gym yet</p>
