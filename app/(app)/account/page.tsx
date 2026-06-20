@@ -152,12 +152,12 @@ export default function AccountPage() {
           <div className="space-y-3">
             <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Edit Profile</p>
             <div>
-              <label className="text-xs text-zinc-600 block mb-1">Display Name</label>
+              <label className="text-xs text-zinc-600 block mb-1">Full name (first &amp; last)</label>
               <input
                 type="text"
                 value={editName}
                 onChange={e => setEditName(e.target.value)}
-                placeholder="Your name"
+                placeholder="e.g. Max Mustermann"
                 className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
               />
             </div>
@@ -202,7 +202,11 @@ export default function AccountPage() {
                 onChange={e => { const f = e.target.files?.[0]; if (f) uploadAvatar(f); }} />
             </label>
             <div className="flex-1 min-w-0">
-              <p className="text-base font-bold text-zinc-100">{profile?.display_name || profile?.username}</p>
+              {profile?.display_name ? (
+                <p className="text-base font-bold text-zinc-100">{profile.display_name}</p>
+              ) : (
+                <button onClick={startEditProfile} className="text-base font-bold text-red-400">+ Add your name</button>
+              )}
               <p className="text-xs text-zinc-500">
                 @{profile?.username}
                 {ageFrom((profile as any)?.birthdate) && <span> · {ageFrom((profile as any)?.birthdate)} yrs</span>}

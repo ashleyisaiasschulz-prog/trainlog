@@ -130,6 +130,13 @@ function GroupDetailInner() {
     router.push("/groups");
   };
 
+  const leaveGym = async () => {
+    if (!confirm(isGym ? "Leave this gym?" : "Leave this group?")) return;
+    const { data } = await sb.rpc("leave_gym", { p_group: id });
+    if (data === "owner") { alert("You own this — delete or transfer it instead."); return; }
+    router.push(isGym ? "/groups" : "/friends");
+  };
+
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError]     = useState("");
 
@@ -1299,11 +1306,16 @@ function GroupDetailInner() {
             </div>
           </div>
 
-          {/* Delete group (owner only) */}
-          {isOwner && (
+          {/* Leave (non-owner) / Delete group (owner) */}
+          {isOwner ? (
             <button onClick={deleteGroup}
               className="w-full mt-4 py-3 rounded-xl border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/10 transition-colors">
               Delete Group
+            </button>
+          ) : (
+            <button onClick={leaveGym}
+              className="w-full mt-4 py-3 rounded-xl border border-zinc-700 text-zinc-400 text-sm font-semibold hover:bg-zinc-800 transition-colors">
+              {isGym ? "Leave gym" : "Leave group"}
             </button>
           )}
         </div>
