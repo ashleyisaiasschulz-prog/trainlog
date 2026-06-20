@@ -821,14 +821,19 @@ function GroupDetailInner() {
                             ) : (
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="text-[11px] text-zinc-500">{going.length}{cap > 0 ? `/${cap}` : ""} coming:</span>
-                                {going.map(uid => (
-                                  <span key={uid} className="inline-flex items-center gap-1 text-[11px] text-zinc-300 bg-zinc-800 px-2 py-0.5 rounded-md">
+                                {going.map(uid => {
+                                  const mem = members.find(x => x.user_id === uid);
+                                  const coach = mem ? isCoachRole(mem) : false;
+                                  return (
+                                  <span key={uid} className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md ${coach ? "bg-amber-500/10 text-amber-300" : "bg-zinc-800 text-zinc-300"}`}>
                                     <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold border border-black/20 ${beltAvatar(beltOf(uid))}`}>
                                       {nameOf(uid)[0].toUpperCase()}
                                     </span>
                                     {nameOf(uid)}
+                                    {coach && <Crown size={9} className="text-amber-400" />}
                                   </span>
-                                ))}
+                                  );
+                                })}
                               </div>
                             )}
                             {waitlist.length > 0 && (
@@ -918,6 +923,18 @@ function GroupDetailInner() {
                               mine?.status==="not_going" ? "bg-red-500/15 text-red-400 ring-1 ring-red-500/30" : "bg-zinc-800 text-zinc-400"
                             }`}>
                             <X size={13}/> Can't make it
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Coach can also train this session */}
+                      {canCoach && (
+                        <div className="mt-3 pt-3 border-t border-zinc-800">
+                          <button onClick={()=>toggleRsvp(s.id, date, mine?.status!=="going")}
+                            className={`w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+                              mine?.status==="going" ? "bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30" : "bg-zinc-800 text-zinc-400"
+                            }`}>
+                            <Crown size={13}/> {mine?.status==="going" ? "You're training this" : "I'm training this"}
                           </button>
                         </div>
                       )}
