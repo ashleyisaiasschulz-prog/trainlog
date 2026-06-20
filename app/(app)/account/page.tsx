@@ -10,6 +10,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { usePrefsStore } from "@/store/usePrefsStore";
 import { useLang } from "@/components/LangProvider";
+import Avatar, { ageFrom } from "@/components/Avatar";
 
 export default function AccountPage() {
   const router = useRouter();
@@ -23,6 +24,22 @@ export default function AccountPage() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [editName, setEditName] = useState("");
   const [editGym, setEditGym]   = useState("");
+  const [editBirthdate, setEditBirthdate] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  const uploadAvatar = async (file: File) => {
+    if (!user) return;
+    setUploading(true);
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `${user.id}/${Date.now()}.${ext}`;
+    const { error: upErr } = await sb.storage.from("avatars").upload(path, file, { upsert: true });
+    if (!upErr) {
+      const { data } = sb.storage.from("avatars").getPublicUrl(path);
+      await sb.from("profiles").update({ avatar_url: data.publicUrl }).eq("id", user.id);
+      await refreshProfile();
+    }
+    setUploading(false);
+  };
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState("");
 
@@ -73,6 +90,7 @@ export default function AccountPage() {
   const startEditProfile = () => {
     setEditName(profile?.display_name || "");
     setEditGym(profile?.gym || "");
+    setEditBirthdate((profile as any)?.birthdate || "");
     setEditingProfile(true);
   };
 
@@ -82,6 +100,7 @@ export default function AccountPage() {
     await sb.from("profiles").update({
       display_name: editName.trim() || null,
       gym: editGym.trim() || null,
+      birthdate: editBirthdate || null,
     }).eq("id", user.id);
     await refreshProfile();
     setEditingProfile(false);
@@ -152,6 +171,15 @@ export default function AccountPage() {
                 className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
               />
             </div>
+            <div>
+              <label className="text-xs text-zinc-600 block mb-1">Date of birth</label>
+              <input
+                type="date"
+                value={editBirthdate}
+                onChange={e => setEditBirthdate(e.target.value)}
+                className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-600"
+              />
+            </div>
             <div className="flex gap-2 pt-1">
               <button onClick={() => setEditingProfile(false)} disabled={saving}
                 className="flex-1 flex items-center justify-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold py-2.5 rounded-xl text-sm transition-colors">
@@ -165,12 +193,20 @@ export default function AccountPage() {
           </div>
         ) : (
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center text-xl font-bold text-red-400">
-              {(profile?.display_name || profile?.username || "?")[0].toUpperCase()}
-            </div>
+            <label className="relative cursor-pointer shrink-0">
+              <Avatar url={(profile as any)?.avatar_url} name={profile?.display_name || profile?.username} belt={profile?.belt} size={56} />
+              <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-red-600 flex items-center justify-center border-2 border-zinc-900">
+                {uploading ? <Loader2 size={10} className="text-white animate-spin" /> : <Pencil size={9} className="text-white" />}
+              </span>
+              <input type="file" accept="image/*" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) uploadAvatar(f); }} />
+            </label>
             <div className="flex-1 min-w-0">
               <p className="text-base font-bold text-zinc-100">{profile?.display_name || profile?.username}</p>
-              <p className="text-xs text-zinc-500">@{profile?.username}</p>
+              <p className="text-xs text-zinc-500">
+                @{profile?.username}
+                {ageFrom((profile as any)?.birthdate) && <span> · {ageFrom((profile as any)?.birthdate)} yrs</span>}
+              </p>
               {profile?.gym && <p className="text-xs text-zinc-500 mt-0.5">{profile.gym}</p>}
             </div>
             <button onClick={startEditProfile}

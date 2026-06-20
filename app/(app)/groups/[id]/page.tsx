@@ -7,19 +7,11 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useTagStore } from "@/store/useTagStore";
 import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy, Loader2, Pencil, Settings as SettingsIcon, MapPin, Megaphone, StickyNote, Flame, Award, Hourglass } from "lucide-react";
 import Link from "next/link";
-import { DAY_NAMES_FULL, BELT_COLORS, BELT_ORDER, BELT_LABELS, Belt } from "@/lib/types";
+import { DAY_NAMES_FULL, BELT_ORDER, BELT_LABELS } from "@/lib/types";
 import { format, differenceInDays, parseISO, startOfWeek, subWeeks } from "date-fns";
 import { QRCodeSVG } from "qrcode.react";
 import { QrCode } from "lucide-react";
-
-// Belt → avatar styling (bg + text + ring)
-function beltAvatar(belt?: string) {
-  const b = (belt ?? "white") as Belt;
-  const c = BELT_COLORS[b] ?? BELT_COLORS.white;
-  // white belt needs dark text; others white text
-  const text = b === "white" ? "text-zinc-900" : "text-white";
-  return `${c.bg} ${text}`;
-}
+import Avatar, { ageFrom } from "@/components/Avatar";
 
 interface Group {
   id: string; name: string; description: string | null;
@@ -32,7 +24,7 @@ interface OpenMat {
   id: string; title: string; date: string | null; time: string | null; gi: boolean; notes: string | null;
   recurring?: boolean | null; day_of_week?: number | null;
 }
-interface MiniProfile { username: string; display_name: string | null; belt: string; stripes: number }
+interface MiniProfile { username: string; display_name: string | null; belt: string; stripes: number; avatar_url?: string | null; birthdate?: string | null }
 interface Member { user_id: string; role: string; joined_at?: string | null; profiles: MiniProfile }
 interface TrainerSession {
   id: string; title: string; description: string | null; focus: string | null;
@@ -172,7 +164,7 @@ function GroupDetailInner() {
     const { data: g } = await sb.from("groups").select("*").eq("id", id).single();
     setGroup(g);
     const { data: m } = await sb.from("group_members")
-      .select("user_id, role, joined_at, profiles(username,display_name,belt,stripes)")
+      .select("user_id, role, joined_at, profiles(username,display_name,belt,stripes,avatar_url,birthdate)")
       .eq("group_id", id);
     setMembers((m as unknown as Member[]) ?? []);
     const { data: s } = await sb.from("trainer_sessions")
@@ -346,6 +338,8 @@ function GroupDetailInner() {
   };
   const beltOf = (uid: string) =>
     members.find(x => x.user_id === uid)?.profiles?.belt ?? "white";
+  const avatarOf = (uid: string) => members.find(x => x.user_id === uid)?.profiles?.avatar_url ?? null;
+  const ageOf = (uid: string) => ageFrom(members.find(x => x.user_id === uid)?.profiles?.birthdate);
   const goingUsers = (sid: string, date: string) =>
     rsvps.filter(r => r.trainer_session_id === sid && r.occurrence_date === date && r.status === "going").map(r => r.user_id);
 
@@ -826,10 +820,8 @@ function GroupDetailInner() {
                                   const coach = mem ? isCoachRole(mem) : false;
                                   return (
                                   <span key={uid} className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md ${coach ? "bg-amber-500/10 text-amber-300" : "bg-zinc-800 text-zinc-300"}`}>
-                                    <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold border border-black/20 ${beltAvatar(beltOf(uid))}`}>
-                                      {nameOf(uid)[0].toUpperCase()}
-                                    </span>
-                                    {nameOf(uid)}
+                                    <Avatar url={avatarOf(uid)} name={nameOf(uid)} belt={beltOf(uid)} size={16} />
+                                    {nameOf(uid)}{ageOf(uid) ? <span className="text-zinc-500">· {ageOf(uid)}</span> : null}
                                     {coach && <Crown size={9} className="text-amber-400" />}
                                   </span>
                                   );
@@ -1109,9 +1101,7 @@ function GroupDetailInner() {
               </p>
               {joinReqs.map(r => (
                 <div key={r.user_id} className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border border-black/20 ${beltAvatar(r.profiles?.belt)}`}>
-                    {(r.profiles?.display_name || r.profiles?.username || "?")[0].toUpperCase()}
-                  </div>
+                  <Avatar url={r.profiles?.avatar_url} name={r.profiles?.display_name || r.profiles?.username} belt={r.profiles?.belt} size={36} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-zinc-100">@{r.profiles?.username}</p>
                     <p className="text-xs text-zinc-500 capitalize">{r.profiles?.belt} belt</p>
@@ -1140,9 +1130,7 @@ function GroupDetailInner() {
                 const owner = m.user_id === group.trainer_id;
                 return (
                   <div key={m.user_id} className="bg-zinc-900 border border-amber-500/20 rounded-2xl px-4 py-3 flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
-                      {(m.profiles?.display_name || m.profiles?.username || "?")[0].toUpperCase()}
-                    </div>
+                    <Avatar url={m.profiles?.avatar_url} name={m.profiles?.display_name || m.profiles?.username} belt={m.profiles?.belt} size={40} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-zinc-100">@{m.profiles?.username}</p>
                       <p className="text-xs text-zinc-500 capitalize">{m.profiles?.belt} belt · {m.profiles?.stripes} stripes</p>
@@ -1190,11 +1178,9 @@ function GroupDetailInner() {
                       }
                     }}
                     className="w-full flex items-center gap-3 text-left">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
-                      {(m.profiles?.display_name || m.profiles?.username || "?")[0].toUpperCase()}
-                    </div>
+                    <Avatar url={m.profiles?.avatar_url} name={m.profiles?.display_name || m.profiles?.username} belt={m.profiles?.belt} size={36} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-zinc-100">@{m.profiles?.username}</p>
+                      <p className="text-sm font-semibold text-zinc-100">@{m.profiles?.username}{ageOf(m.user_id) ? <span className="text-zinc-500 font-normal"> · {ageOf(m.user_id)}</span> : null}</p>
                       <p className="text-xs text-zinc-500 capitalize">{m.profiles?.belt} belt · {m.profiles?.stripes} stripes</p>
                     </div>
                     {canCoach && entries.length > 0 && (
@@ -1497,9 +1483,7 @@ function GymInsights({ attendance, members, sessions, coachNotes }: {
           <div className="flex flex-col gap-2">
             {atRisk.map(({ m, daysSince, total }) => (
               <div key={m.user_id} className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
-                  {nameOf(m)[0].toUpperCase()}
-                </div>
+                <Avatar url={m.profiles?.avatar_url} name={nameOf(m)} belt={m.profiles?.belt} size={32} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-zinc-200 truncate">{nameOf(m)}</p>
                   <p className="text-[10px] text-zinc-600">{total} total check-ins</p>
@@ -1523,9 +1507,7 @@ function GymInsights({ attendance, members, sessions, coachNotes }: {
             {topActive.map(({ m, last30, weekly }, i) => (
               <div key={m.user_id} className="flex items-center gap-3">
                 <span className="w-5 text-center text-xs font-bold text-zinc-600">#{i + 1}</span>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
-                  {nameOf(m)[0].toUpperCase()}
-                </div>
+                <Avatar url={m.profiles?.avatar_url} name={nameOf(m)} belt={m.profiles?.belt} size={32} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-zinc-200 truncate">{nameOf(m)}</p>
                   <p className="text-[10px] text-zinc-600">~{weekly}×/week</p>
@@ -1613,9 +1595,7 @@ function GymInsights({ attendance, members, sessions, coachNotes }: {
               const note = coachNotes[m.user_id]?.promotion?.trim();
               return (
                 <div key={m.user_id} className="flex items-start gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border border-black/20 shrink-0 ${beltAvatar(m.profiles?.belt)}`}>
-                    {nameOf(m)[0].toUpperCase()}
-                  </div>
+                  <Avatar url={m.profiles?.avatar_url} name={nameOf(m)} belt={m.profiles?.belt} size={32} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-zinc-200 truncate">
                       {nameOf(m)} <span className="text-[11px] text-zinc-500 capitalize">· {m.profiles?.belt}{m.profiles?.stripes ? ` ${m.profiles.stripes}` : ""}</span>
@@ -1773,9 +1753,7 @@ function GroupLeaderboard({ members, currentUserId, isGym, attendance }: {
               {medalColor ? <Award size={16} className={medalColor} />
                 : <span className="text-xs font-bold text-zinc-600">{idx + 1}</span>}
             </div>
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 border border-black/20 ${beltAvatar(m.profiles?.belt)}`}>
-              {(m.profiles?.display_name || m.profiles?.username || "?")[0].toUpperCase()}
-            </div>
+            <Avatar url={m.profiles?.avatar_url} name={m.profiles?.display_name || m.profiles?.username} belt={m.profiles?.belt} size={36} />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-zinc-100 truncate">
                 {m.profiles?.display_name || m.profiles?.username}

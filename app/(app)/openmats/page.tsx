@@ -6,15 +6,9 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
 import { ArrowLeft, MapPin, Navigation, CalendarDays, Loader2, Check, Users } from "lucide-react";
 import { format } from "date-fns";
-import { BELT_COLORS, Belt } from "@/lib/types";
+import Avatar, { ageFrom } from "@/components/Avatar";
 
-interface Attendee { id: string; name: string; belt: string }
-
-function beltAvatar(belt?: string) {
-  const b = (belt ?? "white") as Belt;
-  const c = BELT_COLORS[b] ?? BELT_COLORS.white;
-  return `${c.bg} ${b === "white" ? "text-zinc-900" : "text-white"}`;
-}
+interface Attendee { id: string; name: string; belt: string; avatar: string | null; age: number | null }
 
 interface OpenMat {
   id: string; gym_name: string | null; title: string; date: string | null;
@@ -68,7 +62,7 @@ export default function OpenMatsPage() {
     const uids = [...new Set(rows.map((r: any) => r.user_id))];
     const profMap: Record<string, any> = {};
     if (uids.length) {
-      const { data: profs } = await sb.from("profiles").select("id,username,display_name,belt").in("id", uids);
+      const { data: profs } = await sb.from("profiles").select("id,username,display_name,belt,avatar_url,birthdate").in("id", uids);
       (profs ?? []).forEach((p: any) => { profMap[p.id] = p; });
     }
     const c: Record<string, number> = {};
@@ -78,7 +72,7 @@ export default function OpenMatsPage() {
       c[r.open_mat_id] = (c[r.open_mat_id] ?? 0) + 1;
       if (r.user_id === user?.id) m.add(r.open_mat_id);
       const p = profMap[r.user_id];
-      (by[r.open_mat_id] ||= []).push({ id: r.user_id, name: p?.display_name || p?.username || "Someone", belt: p?.belt ?? "white" });
+      (by[r.open_mat_id] ||= []).push({ id: r.user_id, name: p?.display_name || p?.username || "Someone", belt: p?.belt ?? "white", avatar: p?.avatar_url ?? null, age: ageFrom(p?.birthdate) });
     });
     setCounts(c); setMine(m); setAttendees(by);
   };
@@ -105,7 +99,7 @@ export default function OpenMatsPage() {
       await sb.from("open_mat_rsvps").insert({ open_mat_id: id, user_id: user.id });
       setMine(prev => new Set(prev).add(id));
       setCounts(c => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
-      const meChip: Attendee = { id: user.id, name: profile?.display_name || profile?.username || "You", belt: profile?.belt ?? "white" };
+      const meChip: Attendee = { id: user.id, name: profile?.display_name || profile?.username || "You", belt: profile?.belt ?? "white", avatar: (profile as any)?.avatar_url ?? null, age: ageFrom((profile as any)?.birthdate) };
       setAttendees(a => ({ ...a, [id]: [...(a[id] ?? []), meChip] }));
     }
   };
@@ -240,10 +234,8 @@ export default function OpenMatsPage() {
                 <div className="flex items-center gap-1.5 flex-wrap mt-2">
                   {attendees[m.id].map(a => (
                     <span key={a.id} className="inline-flex items-center gap-1 text-[11px] text-zinc-300 bg-zinc-800 px-2 py-0.5 rounded-md">
-                      <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold border border-black/20 ${beltAvatar(a.belt)}`}>
-                        {a.name[0].toUpperCase()}
-                      </span>
-                      {a.name}
+                      <Avatar url={a.avatar} name={a.name} belt={a.belt} size={16} />
+                      {a.name}{a.age ? <span className="text-zinc-500">· {a.age}</span> : null}
                     </span>
                   ))}
                 </div>
