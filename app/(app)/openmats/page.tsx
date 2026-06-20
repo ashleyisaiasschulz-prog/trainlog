@@ -17,9 +17,18 @@ function beltAvatar(belt?: string) {
 }
 
 interface OpenMat {
-  id: string; gym_name: string | null; title: string; date: string;
+  id: string; gym_name: string | null; title: string; date: string | null;
   time: string | null; gi: boolean; notes: string | null;
+  recurring: boolean | null; day_of_week: number | null;
   address: string | null; country: string | null; lat: number | null; lng: number | null;
+}
+
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+// Next calendar date (yyyy-MM-dd) for a recurring weekday, today included.
+function nextWeekday(dow: number) {
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + ((dow - d.getDay() + 7) % 7));
+  return format(d, "yyyy-MM-dd");
 }
 
 // Haversine distance in km
@@ -76,7 +85,7 @@ export default function OpenMatsPage() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await sb.from("open_mats").select("*").gte("date", today).order("date", { ascending: true });
+      const { data } = await sb.from("open_mats").select("*").or(`recurring.eq.true,date.gte.${today}`);
       const rows = (data as OpenMat[]) ?? [];
       setMats(rows);
       await loadRsvps(rows.map(r => r.id));
@@ -117,13 +126,20 @@ export default function OpenMatsPage() {
   };
 
   const list = useMemo(() => {
-    let rows = mats.map(m => ({
-      m,
-      dist: me && m.lat != null && m.lng != null ? distanceKm(me, { lat: m.lat, lng: m.lng }) : null,
-    }));
+    let rows = mats.map(m => {
+      const effDate = m.recurring && m.day_of_week != null ? nextWeekday(m.day_of_week) : (m.date ?? "");
+      const dateLabel = m.recurring && m.day_of_week != null
+        ? `Every ${DAYS[m.day_of_week]}`
+        : (effDate ? format(new Date(effDate + "T12:00:00"), "EEE, MMM d") : "");
+      return {
+        m, effDate, dateLabel,
+        dist: me && m.lat != null && m.lng != null ? distanceKm(me, { lat: m.lat, lng: m.lng }) : null,
+      };
+    });
     if (country !== "all") rows = rows.filter(r => r.m.country === country);
     if (me && radius) rows = rows.filter(r => r.dist != null && r.dist <= radius);
     if (me) rows.sort((a, b) => (a.dist ?? 1e9) - (b.dist ?? 1e9));
+    else rows.sort((a, b) => a.effDate.localeCompare(b.effDate));
     return rows;
   }, [mats, country, me, radius]);
 
@@ -183,7 +199,7 @@ export default function OpenMatsPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {list.map(({ m, dist }) => (
+          {list.map(({ m, dist, dateLabel }) => (
             <div key={m.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
               <div className="flex items-start gap-2">
                 <div className="flex-1 min-w-0">
@@ -196,7 +212,7 @@ export default function OpenMatsPage() {
                   <p className="text-xs text-zinc-400 mt-0.5">{m.gym_name}</p>
                   <p className="text-xs text-zinc-500 mt-1 flex items-center gap-1">
                     <CalendarDays size={11} />
-                    {format(new Date(m.date + "T12:00:00"), "EEE, MMM d")}{m.time && ` · ${m.time.slice(0, 5)}`}
+                    {dateLabel}{m.time && ` · ${m.time.slice(0, 5)}`}
                   </p>
                   {m.address && (
                     <p className="text-xs text-zinc-500 mt-0.5 flex items-start gap-1">

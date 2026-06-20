@@ -29,7 +29,8 @@ interface Group {
   hide_leaderboard?: boolean | null; hide_roster?: boolean | null;
 }
 interface OpenMat {
-  id: string; title: string; date: string; time: string | null; gi: boolean; notes: string | null;
+  id: string; title: string; date: string | null; time: string | null; gi: boolean; notes: string | null;
+  recurring?: boolean | null; day_of_week?: number | null;
 }
 interface MiniProfile { username: string; display_name: string | null; belt: string; stripes: number }
 interface Member { user_id: string; role: string; joined_at?: string | null; profiles: MiniProfile }
@@ -96,7 +97,7 @@ function GroupDetailInner() {
   const [detailsSaved, setDetailsSaved] = useState(false);
   const [suggestions, setSuggestions] = useState<Array<{ displayName: string; lat: number; lng: number; country: string | null }>>([]);
   const [showOmForm, setShowOmForm] = useState(false);
-  const [omForm, setOmForm] = useState({ title: "Open Mat", date: format(new Date(), "yyyy-MM-dd"), time: "11:00", gi: false, notes: "" });
+  const [omForm, setOmForm] = useState({ title: "Open Mat", date: format(new Date(), "yyyy-MM-dd"), time: "11:00", gi: false, notes: "", recurring: false, day_of_week: 0 });
   const [form, setForm] = useState({
     title: "", description: "", focus: "", date: format(new Date(), "yyyy-MM-dd"),
     time: "19:00", duration: 90, gi: true, recurring: false, day_of_week: 2,
@@ -197,8 +198,8 @@ function GroupDetailInner() {
     setOccOverrides(om);
     // This gym's upcoming open mats
     const { data: oms } = await sb.from("open_mats")
-      .select("id,title,date,time,gi,notes").eq("group_id", id)
-      .gte("date", format(new Date(), "yyyy-MM-dd")).order("date", { ascending: true });
+      .select("id,title,date,time,gi,notes,recurring,day_of_week").eq("group_id", id)
+      .or(`recurring.eq.true,date.gte.${format(new Date(), "yyyy-MM-dd")}`);
     setOpenMats((oms as OpenMat[]) ?? []);
     const omIds = (oms ?? []).map((o: any) => o.id);
     if (omIds.length) {
@@ -418,7 +419,9 @@ function GroupDetailInner() {
   const createOpenMat = async () => {
     if (!user || !group?.lat || !omForm.title.trim()) return;
     await sb.from("open_mats").insert({
-      group_id: id, gym_name: group.name, title: omForm.title, date: omForm.date,
+      group_id: id, gym_name: group.name, title: omForm.title,
+      date: omForm.recurring ? null : omForm.date,
+      recurring: omForm.recurring, day_of_week: omForm.recurring ? omForm.day_of_week : null,
       time: omForm.time, gi: omForm.gi, notes: omForm.notes || null,
       address: group.address, country: group.country, lat: group.lat, lng: group.lng,
     });
@@ -946,9 +949,22 @@ function GroupDetailInner() {
                   <input value={omForm.title} onChange={e=>setOmForm(f=>({...f,title:e.target.value}))}
                     placeholder="Title (e.g. Sunday Open Mat)"
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-600" />
-                  <div className="grid grid-cols-3 gap-2">
+                  <button type="button" onClick={()=>setOmForm(f=>({...f,recurring:!f.recurring}))}
+                    className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${omForm.recurring ? "bg-red-500/10 text-red-400 ring-1 ring-red-500/30" : "bg-zinc-900 text-zinc-400"}`}>
+                    <Calendar size={13}/> {omForm.recurring ? "Recurring weekly" : "One-time"}
+                  </button>
+                  {omForm.recurring ? (
+                    <div className="grid grid-cols-7 gap-1">
+                      {DAY_NAMES_FULL.map((d, i) => (
+                        <button key={i} type="button" onClick={()=>setOmForm(f=>({...f,day_of_week:i}))}
+                          className={`py-2 rounded-lg text-[10px] font-bold transition-all ${omForm.day_of_week===i ? "bg-zinc-700 text-zinc-100" : "bg-zinc-900 text-zinc-500"}`}>{d.slice(0,2)}</button>
+                      ))}
+                    </div>
+                  ) : (
                     <input type="date" value={omForm.date} onChange={e=>setOmForm(f=>({...f,date:e.target.value}))}
-                      className="bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-600" />
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-600" />
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
                     <input type="time" value={omForm.time} onChange={e=>setOmForm(f=>({...f,time:e.target.value}))}
                       className="bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-600" />
                     <button type="button" onClick={()=>setOmForm(f=>({...f,gi:!f.gi}))}
@@ -973,7 +989,7 @@ function GroupDetailInner() {
                     <div key={om.id} className="flex items-center gap-2 bg-zinc-800/40 rounded-lg px-3 py-2">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-zinc-200 truncate">{om.title} <span className="text-[10px] text-zinc-500">{om.gi ? "Gi" : "No-Gi"}</span></p>
-                        <p className="text-[11px] text-zinc-500">{format(new Date(om.date+"T12:00:00"),"EEE, MMM d")}{om.time && ` · ${om.time.slice(0,5)}`} · {omCounts[om.id] ?? 0} going</p>
+                        <p className="text-[11px] text-zinc-500">{om.recurring ? `Every ${DAY_NAMES_FULL[om.day_of_week ?? 0]}` : (om.date && format(new Date(om.date+"T12:00:00"),"EEE, MMM d"))}{om.time && ` · ${om.time.slice(0,5)}`} · {omCounts[om.id] ?? 0} going</p>
                       </div>
                       <button onClick={()=>deleteOpenMat(om.id)} className="text-zinc-700 hover:text-red-500 p-1 shrink-0"><Trash2 size={13}/></button>
                     </div>
