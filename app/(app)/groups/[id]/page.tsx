@@ -26,6 +26,7 @@ interface Group {
   gym: string | null; trainer_id: string; invite_code: string;
   max_coaches?: number | null; is_gym?: boolean | null;
   address?: string | null; country?: string | null; lat?: number | null; lng?: number | null;
+  hide_leaderboard?: boolean | null; hide_roster?: boolean | null;
 }
 interface OpenMat {
   id: string; title: string; date: string; time: string | null; gi: boolean; notes: string | null;
@@ -90,6 +91,9 @@ function GroupDetailInner() {
   const [addressBusy, setAddressBusy] = useState(false);
   const [addressErr, setAddressErr] = useState("");
   const [addressResolved, setAddressResolved] = useState("");
+  const [gymName, setGymName] = useState("");
+  const [gymDesc, setGymDesc] = useState("");
+  const [detailsSaved, setDetailsSaved] = useState(false);
   const [suggestions, setSuggestions] = useState<Array<{ displayName: string; lat: number; lng: number; country: string | null }>>([]);
   const [showOmForm, setShowOmForm] = useState(false);
   const [omForm, setOmForm] = useState({ title: "Open Mat", date: format(new Date(), "yyyy-MM-dd"), time: "11:00", gi: false, notes: "" });
@@ -276,6 +280,19 @@ function GroupDetailInner() {
   }, [group]);
 
   useEffect(() => { if (group) setAddressInput(group.address ?? ""); }, [group?.address]);
+  useEffect(() => { if (group) { setGymName(group.name ?? ""); setGymDesc(group.description ?? ""); } }, [group?.id]);
+
+  const saveGymDetails = async () => {
+    if (!gymName.trim()) return;
+    await sb.from("groups").update({ name: gymName.trim(), description: gymDesc.trim() || null }).eq("id", id);
+    setDetailsSaved(true);
+    setTimeout(() => setDetailsSaved(false), 2000);
+    await load();
+  };
+  const toggleGymFlag = async (field: "hide_leaderboard" | "hide_roster", value: boolean) => {
+    await sb.from("groups").update({ [field]: value }).eq("id", id);
+    await load();
+  };
 
   // Address autocomplete (debounced Nominatim suggestions)
   useEffect(() => {
@@ -794,6 +811,7 @@ function GroupDetailInner() {
                             );
                           })()}
                           {/* Who's coming */}
+                          {(!group.hide_roster || canCoach) && (
                           <div className="mt-2.5">
                             {going.length === 0 ? (
                               <p className="text-[11px] text-zinc-600">No one confirmed yet{cap > 0 ? ` · 0/${cap} spots` : ""}</p>
@@ -814,6 +832,7 @@ function GroupDetailInner() {
                               <p className="text-[11px] text-amber-400 mt-1 flex items-center gap-1"><Hourglass size={11}/> {waitlist.length} waitlisted{canCoach ? `: ${waitlist.map(nameOf).join(", ")}` : ""}</p>
                             )}
                           </div>
+                          )}
                           {/* Attendance (coach view): who came + no-shows for THIS date */}
                           {canCoach && (() => {
                             const came = attendedOn(s.id, date);
@@ -969,6 +988,38 @@ function GroupDetailInner() {
       {/* ── SETTINGS TAB (coach/owner) ── */}
       {tab === "settings" && canCoach && (
         <div className="space-y-4">
+          {/* Gym details (owner) */}
+          {isOwner && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+              <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Gym details</p>
+              <input value={gymName} onChange={e=>setGymName(e.target.value)}
+                placeholder="Gym name"
+                className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600" />
+              <textarea value={gymDesc} onChange={e=>setGymDesc(e.target.value)}
+                placeholder="Short description (optional)" rows={2}
+                className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 resize-none" />
+              <button onClick={saveGymDetails} disabled={!gymName.trim()}
+                className="bg-red-600 hover:bg-red-500 text-white font-semibold px-4 py-2 rounded-xl text-sm disabled:opacity-40">
+                {detailsSaved ? "Saved ✓" : "Save"}
+              </button>
+            </div>
+          )}
+
+          {/* Privacy (owner) */}
+          {isOwner && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-1">
+              <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-2">Privacy</p>
+              <Toggle label="Members can see the leaderboard"
+                desc="Turn off to keep the attendance ranking coach-only"
+                on={!group.hide_leaderboard}
+                onChange={v => toggleGymFlag("hide_leaderboard", !v)} />
+              <Toggle label="Members can see who's coming"
+                desc="Turn off to hide the RSVP / attendee list from members"
+                on={!group.hide_roster}
+                onChange={v => toggleGymFlag("hide_roster", !v)} />
+            </div>
+          )}
+
           {/* Gym address — owner only, must geocode to a real place */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
             <div>
@@ -1239,8 +1290,12 @@ function GroupDetailInner() {
       {tab === "board" && (
         <div className="space-y-4">
           {isGym && <MyAttendanceCard attendance={attendance} userId={user?.id ?? ""} />}
-          <GroupLeaderboard members={members} currentUserId={user?.id ?? ""}
-            isGym={isGym} attendance={attendance} />
+          {(!group.hide_leaderboard || canCoach) ? (
+            <GroupLeaderboard members={members} currentUserId={user?.id ?? ""}
+              isGym={isGym} attendance={attendance} />
+          ) : (
+            <p className="text-xs text-zinc-600 text-center py-4">The leaderboard is hidden by your gym.</p>
+          )}
         </div>
       )}
 
@@ -1551,6 +1606,20 @@ function Kpi({ value, label, accent }: { value: number; label: string; accent?: 
       <p className={`text-2xl font-black tabular-nums ${accent ? "text-red-400" : "text-zinc-100"}`}>{value}</p>
       <p className="text-[11px] text-zinc-500 mt-0.5">{label}</p>
     </div>
+  );
+}
+
+function Toggle({ label, desc, on, onChange }: { label: string; desc?: string; on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button onClick={() => onChange(!on)} className="w-full flex items-center gap-3 py-2 text-left">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-zinc-200">{label}</p>
+        {desc && <p className="text-[11px] text-zinc-600">{desc}</p>}
+      </div>
+      <div className={`w-10 h-6 rounded-full transition-colors shrink-0 ${on ? "bg-red-500" : "bg-zinc-700"}`}>
+        <div className={`w-5 h-5 rounded-full bg-white mt-0.5 transition-transform ${on ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+      </div>
+    </button>
   );
 }
 
