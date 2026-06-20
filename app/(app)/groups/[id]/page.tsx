@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useTagStore } from "@/store/useTagStore";
-import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy, Loader2, Pencil, Settings as SettingsIcon, MapPin, Megaphone, StickyNote, Flame, Award, Hourglass } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy, Loader2, Pencil, Settings as SettingsIcon, MapPin, Megaphone, StickyNote, Flame, Award, Hourglass, ArrowUp, ArrowDown, UserMinus } from "lucide-react";
 import Link from "next/link";
 import { DAY_NAMES_FULL, BELT_ORDER, BELT_LABELS } from "@/lib/types";
 import { format, differenceInDays, parseISO, startOfWeek, subWeeks } from "date-fns";
@@ -25,6 +25,7 @@ interface OpenMat {
   recurring?: boolean | null; day_of_week?: number | null;
 }
 interface MiniProfile { username: string; display_name: string | null; belt: string; stripes: number; avatar_url?: string | null; birthdate?: string | null }
+interface Departure { user_id: string; left_at: string; profiles: MiniProfile }
 interface Member { user_id: string; role: string; joined_at?: string | null; profiles: MiniProfile }
 interface TrainerSession {
   id: string; title: string; description: string | null; focus: string | null;
@@ -74,6 +75,7 @@ function GroupDetailInner() {
   const [announcements, setAnnouncements] = useState<{ id: string; text: string; created_at: string; author_id: string }[]>([]);
   const [newAnnouncement, setNewAnnouncement] = useState("");
   const [joinReqs, setJoinReqs] = useState<{ user_id: string; profiles: MiniProfile }[]>([]);
+  const [departures, setDepartures] = useState<Departure[]>([]);
   const [noteEntries, setNoteEntries] = useState<Record<string, { id: string; text: string; created_at: string }[]>>({});
   const [newNoteText, setNewNoteText] = useState("");
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
@@ -117,6 +119,7 @@ function GroupDetailInner() {
 
   const kickMember = async (uid: string) => {
     if (!confirm("Remove this member from the group?")) return;
+    await sb.from("gym_departures").insert({ group_id: id, user_id: uid });
     await sb.from("group_members").delete().eq("group_id", id).eq("user_id", uid);
     await load();
   };
@@ -204,6 +207,11 @@ function GroupDetailInner() {
     const { data: jr } = await sb.from("join_requests")
       .select("user_id, profiles(username,display_name,belt,stripes)").eq("group_id", id);
     setJoinReqs((jr as unknown as { user_id: string; profiles: MiniProfile }[]) ?? []);
+    // Departures (RLS: coaches only)
+    const { data: dep } = await sb.from("gym_departures")
+      .select("user_id, left_at, profiles(username,display_name,belt,stripes,avatar_url,birthdate)")
+      .eq("group_id", id).order("left_at", { ascending: false }).limit(30);
+    setDepartures((dep as unknown as Departure[]) ?? []);
     // Dated coach note entries (RLS: coaches only)
     const { data: ne } = await sb.from("coach_note_entries")
       .select("id, student_id, text, created_at").eq("group_id", id)
@@ -1103,7 +1111,8 @@ function GroupDetailInner() {
                 <div key={r.user_id} className="flex items-center gap-3">
                   <Avatar url={r.profiles?.avatar_url} name={r.profiles?.display_name || r.profiles?.username} belt={r.profiles?.belt} size={36} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-zinc-100">@{r.profiles?.username}</p>
+                    <p className="text-sm font-semibold text-zinc-100">{r.profiles?.display_name || r.profiles?.username}</p>
+                    <p className="text-[10px] text-zinc-600">@{r.profiles?.username}</p>
                     <p className="text-xs text-zinc-500 capitalize">{r.profiles?.belt} belt</p>
                   </div>
                   <button onClick={() => approveJoin(r.user_id)}
@@ -1132,7 +1141,7 @@ function GroupDetailInner() {
                   <div key={m.user_id} className="bg-zinc-900 border border-amber-500/20 rounded-2xl px-4 py-3 flex items-center gap-3">
                     <Avatar url={m.profiles?.avatar_url} name={m.profiles?.display_name || m.profiles?.username} belt={m.profiles?.belt} size={40} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-zinc-100">@{m.profiles?.username}</p>
+                      <p className="text-sm font-semibold text-zinc-100">{m.profiles?.display_name || m.profiles?.username}</p>
                       <p className="text-xs text-zinc-500 capitalize">{m.profiles?.belt} belt · {m.profiles?.stripes} stripes</p>
                     </div>
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md">
@@ -1180,7 +1189,7 @@ function GroupDetailInner() {
                     className="w-full flex items-center gap-3 text-left">
                     <Avatar url={m.profiles?.avatar_url} name={m.profiles?.display_name || m.profiles?.username} belt={m.profiles?.belt} size={36} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-zinc-100">@{m.profiles?.username}{ageOf(m.user_id) ? <span className="text-zinc-500 font-normal"> · {ageOf(m.user_id)}</span> : null}</p>
+                      <p className="text-sm font-semibold text-zinc-100">{m.profiles?.display_name || m.profiles?.username}{ageOf(m.user_id) ? <span className="text-zinc-500 font-normal"> · {ageOf(m.user_id)}</span> : null}</p>
                       <p className="text-xs text-zinc-500 capitalize">{m.profiles?.belt} belt · {m.profiles?.stripes} stripes</p>
                     </div>
                     {canCoach && entries.length > 0 && (
@@ -1321,7 +1330,7 @@ function GroupDetailInner() {
       {/* ── INSIGHTS TAB ── */}
       {tab === "insights" && canCoach && (
         <div className="space-y-4">
-          <GymInsights attendance={attendance} members={members} sessions={sessions} coachNotes={coachNotes} />
+          <GymInsights attendance={attendance} members={members} sessions={sessions} coachNotes={coachNotes} departures={departures} />
           <GroupInsights groupId={id as string} isTrainer={canCoach} />
         </div>
       )}
@@ -1348,14 +1357,17 @@ function GroupDetailInner() {
 }
 
 /* ── Gym Insights: the coach's command center (gym-only, check-in driven) ── */
-function GymInsights({ attendance, members, sessions, coachNotes }: {
+function GymInsights({ attendance, members, sessions, coachNotes, departures }: {
   attendance: { trainer_session_id: string; user_id: string; date: string }[];
   members: Member[];
   sessions: TrainerSession[];
   coachNotes: Record<string, CoachNote>;
+  departures: Departure[];
 }) {
   const now = new Date();
   const monthKey = format(now, "yyyy-MM");
+  const joinedThisMonth = members.filter(m => (m.joined_at ?? "").startsWith(monthKey)).length;
+  const leftThisMonth = departures.filter(d => (d.left_at ?? "").startsWith(monthKey)).length;
   const nameOf = (m: Member) => m.profiles?.display_name || m.profiles?.username || "?";
 
   // ── KPIs (this month, from check-ins) ──
@@ -1374,9 +1386,10 @@ function GymInsights({ attendance, members, sessions, coachNotes }: {
     ...mo,
     checkins: attendance.filter(a => a.date.startsWith(mo.key)).length,
     joined:   members.filter(m => (m.joined_at ?? "").startsWith(mo.key)).length,
+    left:     departures.filter(d => (d.left_at ?? "").startsWith(mo.key)).length,
   }));
   const trendMax  = Math.max(1, ...trend.map(t => t.checkins));
-  const growthMax = Math.max(1, ...trend.map(t => t.joined));
+  const growthMax = Math.max(1, ...trend.map(t => Math.max(t.joined, t.left)));
 
   // ── Per-member stats ──
   const rows = members.map(m => {
@@ -1450,7 +1463,15 @@ function GymInsights({ attendance, members, sessions, coachNotes }: {
         <Kpi value={checkinsMonth} label="Check-ins this month" accent />
         <Kpi value={activeMembers} label="Active members" />
         <Kpi value={avgPerClass} label="Avg per class" />
-        <Kpi value={members.length} label="Total members" />
+        <div className="rounded-2xl p-4 border bg-zinc-900 border-zinc-800">
+          <p className="text-2xl font-black tabular-nums text-zinc-100">{members.length}</p>
+          <p className="text-[11px] text-zinc-500 mt-0.5">Total members</p>
+          <div className="flex items-center gap-2 mt-1.5">
+            <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-emerald-400"><ArrowUp size={11}/> {joinedThisMonth}</span>
+            <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-red-400"><ArrowDown size={11}/> {leftThisMonth}</span>
+            <span className="text-[10px] text-zinc-600">this month</span>
+          </div>
+        </div>
       </div>
 
       {/* ── Attendance trend ── */}
@@ -1566,21 +1587,52 @@ function GymInsights({ attendance, members, sessions, coachNotes }: {
         )}
       </div>
 
-      {/* ── Member growth ── */}
+      {/* ── Member growth: joined vs left ── */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
-        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">New members · last 6 months</p>
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Member growth · 6 months</p>
+          <div className="flex items-center gap-2 text-[10px]">
+            <span className="flex items-center gap-1 text-emerald-400"><span className="w-2 h-2 rounded-sm bg-emerald-500/70"/> joined</span>
+            <span className="flex items-center gap-1 text-red-400"><span className="w-2 h-2 rounded-sm bg-red-500/70"/> left</span>
+          </div>
+        </div>
         <div className="flex items-end gap-2 h-24">
           {trend.map(t => (
             <div key={t.key} className="flex-1 flex flex-col items-center gap-1.5">
-              <span className="text-[10px] font-bold text-zinc-400 tabular-nums">{t.joined}</span>
-              <div className="w-full bg-zinc-800 rounded-md overflow-hidden flex items-end" style={{ height: "100%" }}>
-                <div className="w-full bg-emerald-500/70 rounded-md" style={{ height: `${(t.joined / growthMax) * 100}%` }} />
+              <div className="w-full flex items-end justify-center gap-1" style={{ height: "100%" }}>
+                <div className="w-1/2 bg-zinc-800 rounded-sm overflow-hidden flex items-end" style={{ height: "100%" }}>
+                  <div className="w-full bg-emerald-500/70 rounded-sm" style={{ height: `${(t.joined / growthMax) * 100}%` }} />
+                </div>
+                <div className="w-1/2 bg-zinc-800 rounded-sm overflow-hidden flex items-end" style={{ height: "100%" }}>
+                  <div className="w-full bg-red-500/70 rounded-sm" style={{ height: `${(t.left / growthMax) * 100}%` }} />
+                </div>
               </div>
               <span className="text-[10px] text-zinc-600">{t.label}</span>
             </div>
           ))}
         </div>
       </div>
+
+      {/* ── Left the gym (win them back) ── */}
+      {departures.length > 0 && (
+        <div className="bg-zinc-900 border border-red-500/20 rounded-2xl p-4 space-y-3">
+          <div>
+            <p className="text-[11px] font-semibold text-red-400 uppercase tracking-widest flex items-center gap-1.5"><UserMinus size={12}/> Left the gym</p>
+            <p className="text-xs text-zinc-600">Reach out — maybe they&apos;ll come back</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            {departures.slice(0, 8).map(d => (
+              <div key={d.user_id + d.left_at} className="flex items-center gap-3">
+                <Avatar url={d.profiles?.avatar_url} name={d.profiles?.display_name || d.profiles?.username} belt={d.profiles?.belt} size={32} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-zinc-200 truncate">{d.profiles?.display_name || d.profiles?.username}</p>
+                  <p className="text-[10px] text-zinc-600">left {format(new Date(d.left_at), "MMM d, yyyy")}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em] pt-1 pl-1">Members</p>
 
