@@ -1479,11 +1479,9 @@ function GymInsights({ attendance, members, sessions, coachNotes, departures }: 
         <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Attendance · last 6 months</p>
         <div className="flex items-end gap-2 h-28">
           {trend.map(t => (
-            <div key={t.key} className="flex-1 flex flex-col items-center gap-1.5">
+            <div key={t.key} className="flex-1 h-full flex flex-col items-center justify-end gap-1">
               <span className="text-[10px] font-bold text-zinc-400 tabular-nums">{t.checkins}</span>
-              <div className="w-full bg-zinc-800 rounded-md overflow-hidden flex items-end" style={{ height: "100%" }}>
-                <div className="w-full bg-red-500/70 rounded-md" style={{ height: `${(t.checkins / trendMax) * 100}%` }} />
-              </div>
+              <div className="w-full bg-red-500/70 rounded-md" style={{ height: `${(t.checkins / trendMax) * 100}%`, minHeight: t.checkins > 0 ? "4px" : "0" }} />
               <span className="text-[10px] text-zinc-600">{t.label}</span>
             </div>
           ))}
@@ -1598,14 +1596,14 @@ function GymInsights({ attendance, members, sessions, coachNotes, departures }: 
         </div>
         <div className="flex items-end gap-2 h-24">
           {trend.map(t => (
-            <div key={t.key} className="flex-1 flex flex-col items-center gap-1.5">
-              <div className="w-full flex items-end justify-center gap-1" style={{ height: "100%" }}>
-                <div className="w-1/2 bg-zinc-800 rounded-sm overflow-hidden flex items-end" style={{ height: "100%" }}>
-                  <div className="w-full bg-emerald-500/70 rounded-sm" style={{ height: `${(t.joined / growthMax) * 100}%` }} />
-                </div>
-                <div className="w-1/2 bg-zinc-800 rounded-sm overflow-hidden flex items-end" style={{ height: "100%" }}>
-                  <div className="w-full bg-red-500/70 rounded-sm" style={{ height: `${(t.left / growthMax) * 100}%` }} />
-                </div>
+            <div key={t.key} className="flex-1 h-full flex flex-col items-center justify-end gap-1">
+              <div className="w-full flex-1 flex items-end justify-center gap-1">
+                <div className="w-1/2 bg-emerald-500/70 rounded-sm" style={{ height: `${(t.joined / growthMax) * 100}%`, minHeight: t.joined > 0 ? "4px" : "0" }} />
+                <div className="w-1/2 bg-red-500/70 rounded-sm" style={{ height: `${(t.left / growthMax) * 100}%`, minHeight: t.left > 0 ? "4px" : "0" }} />
+              </div>
+              <div className="flex gap-1 text-[9px] tabular-nums">
+                <span className="text-emerald-400 w-1/2 text-center">{t.joined || ""}</span>
+                <span className="text-red-400 w-1/2 text-center">{t.left || ""}</span>
               </div>
               <span className="text-[10px] text-zinc-600">{t.label}</span>
             </div>
