@@ -9,8 +9,8 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie, Legend,
 } from "recharts";
-import { format, eachWeekOfInterval, subWeeks, addWeeks, startOfMonth, startOfWeek, subDays } from "date-fns";
-import { Award } from "lucide-react";
+import { format, eachWeekOfInterval, subWeeks, addWeeks, startOfMonth, startOfWeek, subDays, differenceInDays } from "date-fns";
+import { Award, Flame, Moon } from "lucide-react";
 import RangeTabs, { Range, inRange } from "@/components/RangeTabs";
 import { computeStreak } from "@/components/StreakWidget";
 import { Belt, BELT_ORDER, BELT_LABELS, getPlacementCfg } from "@/lib/types";
@@ -61,6 +61,34 @@ export default function StatsPage() {
     const end = sorted[idx + 1]?.date ?? "9999-12-31";
     return { start, end };
   };
+
+  // Training focus: what you've been drilling (30d) + what you've neglected
+  const trainingFocus = useMemo(() => {
+    const now = new Date();
+    const acc: Record<string, { total: number; recent: number; last: string | null }> = {};
+    for (const s of sessions) {
+      const days = s.date ? differenceInDays(now, new Date(s.date + "T12:00:00")) : 9999;
+      const vals = [
+        ...(s.positions ?? []),
+        ...(s.submissionsGiven ?? []), ...(s.submissionsReceived ?? []),
+        ...(s.sweepsGiven ?? []), ...(s.sweepsReceived ?? []),
+        ...(s.escapesGiven ?? []), ...(s.escapesReceived ?? []),
+      ];
+      for (const v of vals) {
+        const a = (acc[v] ||= { total: 0, recent: 0, last: null });
+        a.total++;
+        if (days <= 30) a.recent++;
+        if (s.date && (!a.last || s.date > a.last)) a.last = s.date;
+      }
+    }
+    const arr = Object.entries(acc).map(([name, a]) => ({
+      name, ...a, daysSince: a.last ? differenceInDays(now, new Date(a.last + "T12:00:00")) : null,
+    }));
+    const focus = arr.filter(x => x.recent > 0).sort((a, b) => b.recent - a.recent).slice(0, 8);
+    const neglected = arr.filter(x => x.total >= 3 && (x.daysSince ?? 0) >= 45)
+      .sort((a, b) => (b.daysSince ?? 0) - (a.daysSince ?? 0)).slice(0, 6);
+    return { focus, neglected };
+  }, [sessions]);
 
   // Competitions filtered by the selected belt (independent of the chart range)
   const compTournaments = useMemo(() => {
@@ -329,6 +357,38 @@ export default function StatsPage() {
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
+
+      {/* ── Training focus & neglected ── */}
+      {(trainingFocus.focus.length > 0 || trainingFocus.neglected.length > 0) && (
+        <ChartCard title="Training Focus" subtitle="What you've been drilling — and what you've neglected">
+          {trainingFocus.focus.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold text-amber-400 uppercase tracking-widest flex items-center gap-1.5 mb-2"><Flame size={12}/> Focus · last 30 days</p>
+              <div className="flex flex-wrap gap-1.5">
+                {trainingFocus.focus.map(s => (
+                  <span key={s.name} className="text-[11px] font-medium px-2 py-1 rounded-lg bg-red-500/10 text-red-300 flex items-center gap-1">
+                    {s.name} <span className="text-[9px] font-bold opacity-70">×{s.recent}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {trainingFocus.neglected.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 mb-1"><Moon size={12}/> Needs attention</p>
+              <p className="text-[11px] text-zinc-600 mb-2">Trained before, but not in a while</p>
+              <div className="flex flex-col gap-1.5">
+                {trainingFocus.neglected.map(s => (
+                  <div key={s.name} className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-zinc-300">{s.name}</span>
+                    <span className="text-[11px] text-amber-400/80 shrink-0">{s.daysSince}d ago</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </ChartCard>
+      )}
 
       {/* ── Gi vs No-Gi ── */}
       {(giRatio[0].value > 0 || giRatio[1].value > 0) && (
