@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import TourOverlay from "@/components/TourOverlay";
@@ -15,6 +15,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, loading } = useAuthStore();
+  const [minSplash, setMinSplash] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -22,8 +23,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [loading, user, router]);
 
-  // While checking auth, or redirecting → animated splash
-  if (loading || !user) {
+  // Keep the splash on screen long enough to play the full animation.
+  useEffect(() => {
+    const t = setTimeout(() => setMinSplash(false), 1900);
+    return () => clearTimeout(t);
+  }, []);
+
+  // While checking auth / redirecting / before the splash has finished → splash
+  if (loading || !user || minSplash) {
     return <Splash />;
   }
 
