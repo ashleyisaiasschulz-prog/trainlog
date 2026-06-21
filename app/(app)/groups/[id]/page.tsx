@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useTagStore } from "@/store/useTagStore";
-import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy, Loader2, Pencil, Settings as SettingsIcon, MapPin, Megaphone, StickyNote, Flame, Award, Hourglass, ArrowUp, ArrowDown, UserMinus } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Users, Clock, Check, X, Trash2, Target, BarChart2, MessageCircle, Send, Crown, Trophy, Loader2, Pencil, Settings as SettingsIcon, MapPin, Megaphone, StickyNote, Flame, Award, Hourglass, ArrowUp, ArrowDown, UserMinus, Mail, Phone } from "lucide-react";
 import Link from "next/link";
 import { DAY_NAMES_FULL, BELT_ORDER, BELT_LABELS } from "@/lib/types";
 import { format, differenceInDays, parseISO, startOfWeek, subWeeks } from "date-fns";
@@ -76,6 +76,7 @@ function GroupDetailInner() {
   const [newAnnouncement, setNewAnnouncement] = useState("");
   const [joinReqs, setJoinReqs] = useState<{ user_id: string; profiles: MiniProfile }[]>([]);
   const [departures, setDepartures] = useState<Departure[]>([]);
+  const [contacts, setContacts] = useState<Record<string, { email: string | null; phone: string | null }>>({});
   const [noteEntries, setNoteEntries] = useState<Record<string, { id: string; text: string; created_at: string }[]>>({});
   const [newNoteText, setNewNoteText] = useState("");
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
@@ -219,6 +220,11 @@ function GroupDetailInner() {
       .select("user_id, left_at, profiles(username,display_name,belt,stripes,avatar_url,birthdate)")
       .eq("group_id", id).order("left_at", { ascending: false }).limit(30);
     setDepartures((dep as unknown as Departure[]) ?? []);
+    // Member contact data (RLS via RPC: coaches only)
+    const { data: contactRows } = await sb.rpc("gym_member_contacts", { p_group: id });
+    const cm: Record<string, { email: string | null; phone: string | null }> = {};
+    (contactRows ?? []).forEach((r: any) => { cm[r.user_id] = { email: r.email, phone: r.phone }; });
+    setContacts(cm);
     // Dated coach note entries (RLS: coaches only)
     const { data: ne } = await sb.from("coach_note_entries")
       .select("id, student_id, text, created_at").eq("group_id", id)
@@ -1208,6 +1214,24 @@ function GroupDetailInner() {
                   {/* Expanded actions (coach) */}
                   {canCoach && open && (
                     <div className="mt-3 pt-3 border-t border-zinc-800 space-y-3">
+                      {/* Contact */}
+                      {(contacts[m.user_id]?.email || contacts[m.user_id]?.phone) && (
+                        <div className="flex flex-wrap gap-2">
+                          {contacts[m.user_id]?.email && (
+                            <a href={`mailto:${contacts[m.user_id].email}`}
+                              className="flex items-center gap-1.5 bg-zinc-800/60 hover:bg-zinc-700 text-zinc-200 text-xs font-medium px-3 py-1.5 rounded-lg">
+                              <Mail size={13}/> {contacts[m.user_id].email}
+                            </a>
+                          )}
+                          {contacts[m.user_id]?.phone && (
+                            <a href={`tel:${contacts[m.user_id].phone}`}
+                              className="flex items-center gap-1.5 bg-zinc-800/60 hover:bg-zinc-700 text-zinc-200 text-xs font-medium px-3 py-1.5 rounded-lg">
+                              <Phone size={13}/> {contacts[m.user_id].phone}
+                            </a>
+                          )}
+                        </div>
+                      )}
+
                       {/* Owner actions */}
                       {isOwner && (
                         <div className="flex gap-2">
@@ -1342,7 +1366,7 @@ function GroupDetailInner() {
       {/* ── INSIGHTS TAB ── */}
       {tab === "insights" && canCoach && (
         <div className="space-y-4">
-          <GymInsights attendance={attendance} members={members} sessions={sessions} coachNotes={coachNotes} departures={departures} />
+          <GymInsights attendance={attendance} members={members} sessions={sessions} coachNotes={coachNotes} departures={departures} contacts={contacts} />
           <GroupInsights groupId={id as string} isTrainer={canCoach} />
         </div>
       )}
@@ -1369,12 +1393,13 @@ function GroupDetailInner() {
 }
 
 /* ── Gym Insights: the coach's command center (gym-only, check-in driven) ── */
-function GymInsights({ attendance, members, sessions, coachNotes, departures }: {
+function GymInsights({ attendance, members, sessions, coachNotes, departures, contacts }: {
   attendance: { trainer_session_id: string; user_id: string; date: string }[];
   members: Member[];
   sessions: TrainerSession[];
   coachNotes: Record<string, CoachNote>;
   departures: Departure[];
+  contacts: Record<string, { email: string | null; phone: string | null }>;
 }) {
   const now = new Date();
   const monthKey = format(now, "yyyy-MM");
@@ -1519,6 +1544,9 @@ function GymInsights({ attendance, members, sessions, coachNotes, departures }: 
                   <p className="text-sm text-zinc-200 truncate">{nameOf(m)}</p>
                   <p className="text-[10px] text-zinc-600">{total} total check-ins</p>
                 </div>
+                {contacts[m.user_id]?.email && (
+                  <a href={`mailto:${contacts[m.user_id].email}`} className="text-zinc-500 hover:text-zinc-200 shrink-0"><Mail size={14}/></a>
+                )}
                 <span className="text-[11px] font-semibold text-amber-400 shrink-0">
                   {daysSince === null ? "Never" : `${daysSince}d ago`}
                 </span>
@@ -1638,6 +1666,9 @@ function GymInsights({ attendance, members, sessions, coachNotes, departures }: 
                   <p className="text-sm text-zinc-200 truncate">{d.profiles?.display_name || d.profiles?.username}</p>
                   <p className="text-[10px] text-zinc-600">left {format(new Date(d.left_at), "MMM d, yyyy")}</p>
                 </div>
+                {contacts[d.user_id]?.email && (
+                  <a href={`mailto:${contacts[d.user_id].email}`} className="text-zinc-500 hover:text-zinc-200 shrink-0"><Mail size={14}/></a>
+                )}
               </div>
             ))}
           </div>

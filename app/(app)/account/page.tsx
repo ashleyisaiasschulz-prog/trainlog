@@ -25,6 +25,7 @@ export default function AccountPage() {
   const [editName, setEditName] = useState("");
   const [editGym, setEditGym]   = useState("");
   const [editBirthdate, setEditBirthdate] = useState("");
+  const [editPhone, setEditPhone] = useState("");
   const [uploading, setUploading] = useState(false);
 
   const uploadAvatar = async (file: File) => {
@@ -91,6 +92,7 @@ export default function AccountPage() {
     setEditName(profile?.display_name || "");
     setEditGym(profile?.gym || "");
     setEditBirthdate((profile as any)?.birthdate || "");
+    setEditPhone((profile as any)?.phone || "");
     setEditingProfile(true);
   };
 
@@ -101,6 +103,7 @@ export default function AccountPage() {
       display_name: editName.trim() || null,
       gym: editGym.trim() || null,
       birthdate: editBirthdate || null,
+      phone: editPhone.trim() || null,
     }).eq("id", user.id);
     await refreshProfile();
     setEditingProfile(false);
@@ -178,6 +181,16 @@ export default function AccountPage() {
                 value={editBirthdate}
                 onChange={e => setEditBirthdate(e.target.value)}
                 className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-600"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-600 block mb-1">Phone <span className="text-zinc-700">· only your gym's coaches can see it</span></label>
+              <input
+                type="tel"
+                value={editPhone}
+                onChange={e => setEditPhone(e.target.value)}
+                placeholder="+49 …"
+                className="w-full bg-zinc-800/60 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
               />
             </div>
             <div className="flex gap-2 pt-1">
