@@ -9,6 +9,7 @@ import TimerRunner from "@/components/TimerRunner";
 import FloatingTimer from "@/components/FloatingTimer";
 import Toast from "@/components/Toast";
 import { LangProvider } from "@/components/LangProvider";
+import Splash from "@/components/Splash";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -21,15 +22,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [loading, user, router]);
 
-  // While checking auth, or redirecting → show a clean loader
+  // While checking auth, or redirecting → animated splash
   if (loading || !user) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-zinc-950">
-        <div className="text-2xl">🥋</div>
-        <div className="w-6 h-6 border-2 border-zinc-700 border-t-red-500 rounded-full animate-spin" />
-        <p className="text-xs text-zinc-600">Loading…</p>
-      </div>
-    );
+    return <Splash />;
   }
 
   return (
