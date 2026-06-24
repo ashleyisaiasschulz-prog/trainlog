@@ -1,7 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { OPERATOR, APP_NAME, LEGAL_UPDATED } from "@/lib/legal";
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-1.5">
+      <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest">{title}</p>
+      <div className="text-xs text-zinc-500 leading-relaxed space-y-2">{children}</div>
+    </section>
+  );
+}
 
 export default function DatenschutzPage() {
   return (
@@ -11,53 +21,51 @@ export default function DatenschutzPage() {
       </Link>
 
       <h1 className="text-2xl font-black text-zinc-100 mb-2">Datenschutzerklärung</h1>
-      <p className="text-xs text-zinc-600 mb-6">Gemäß DSGVO & BDSG</p>
+      <p className="text-xs text-zinc-600 mb-8">Informationen gemäß Art. 13 DSGVO</p>
 
-      <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-8">
-        <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
-        <p className="text-xs text-amber-300 leading-relaxed">
-          <strong>Prototyp</strong> — Diese Datenschutzerklärung ist noch nicht vollständig und nicht rechtsverbindlich. Vor dem offiziellen Launch mit einem Anwalt oder Generator (z. B. eRecht24) vervollständigen.
-        </p>
-      </div>
+      <div className="space-y-7">
+        <Section title="1. Verantwortlicher">
+          <p>{OPERATOR.name}, {OPERATOR.street}, {OPERATOR.city}, {OPERATOR.country}. E-Mail: {OPERATOR.email}.</p>
+        </Section>
 
-      <div className="space-y-6 text-sm">
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">1. Verantwortlicher</p>
-          <p className="text-zinc-500 text-xs leading-relaxed">
-            Verantwortlich im Sinne der DSGVO ist: [Dein Name], [Adresse], 20asherhd02@gmail.com
-          </p>
-        </section>
+        <Section title="2. Welche Daten wir verarbeiten">
+          <p><strong className="text-zinc-300">Konto:</strong> E-Mail-Adresse, Benutzername, Anzeigename, Passwort (verschlüsselt). Freiwillig: Profilbild, Geburtsdatum, Telefonnummer, Gym/Verein, Gurtgrad.</p>
+          <p><strong className="text-zinc-300">Trainingsdaten:</strong> von dir erfasste Sessions, Positionen, Techniken, Verletzungen, Notizen, Wettkämpfe, Anwesenheiten.</p>
+          <p><strong className="text-zinc-300">Gym/Gruppen:</strong> Mitgliedschaften, Anmeldungen zu Klassen, Check-ins, Coach-Notizen.</p>
+          <p><strong className="text-zinc-300">Technisch:</strong> beim Aufruf werden durch den Hosting-Anbieter Server-Logdaten (IP-Adresse, Zeitpunkt, abgerufene Ressource) verarbeitet.</p>
+        </Section>
 
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">2. Erhobene Daten</p>
-          <p className="text-zinc-500 text-xs leading-relaxed">
-            Wir erheben bei der Registrierung: E-Mail-Adresse, Benutzername und Trainingsdata (Gürtel, Sessions, Turniere). Diese Daten werden ausschließlich zur Bereitstellung der App-Funktionen verwendet.
-          </p>
-        </section>
+        <Section title="3. Zwecke & Rechtsgrundlagen">
+          <p>Bereitstellung und Betrieb des Dienstes, Verwaltung deines Kontos und deiner Trainingsdaten sowie der Gym-Funktionen — Rechtsgrundlage Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung).</p>
+          <p>Abwicklung von Abonnements und Zahlungen — Art. 6 Abs. 1 lit. b DSGVO.</p>
+          <p>Sicherer, stabiler Betrieb (Server-Logs) — Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse).</p>
+        </Section>
 
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">3. Drittanbieter</p>
-          <div className="text-zinc-500 text-xs leading-relaxed space-y-1">
-            <p><strong className="text-zinc-400">Supabase</strong> (Supabase Inc., USA) — Datenbank & Authentifizierung. Daten werden auf EU-Servern gespeichert.</p>
-            <p><strong className="text-zinc-400">Stripe</strong> (Stripe Inc., USA) — Zahlungsabwicklung. Zahlungsdaten werden ausschließlich von Stripe verarbeitet und niemals auf unseren Servern gespeichert.</p>
-            <p><strong className="text-zinc-400">Vercel</strong> (Vercel Inc., USA) — Hosting. Serverstandorte in der EU verfügbar.</p>
-          </div>
-        </section>
+        <Section title="4. Auftragsverarbeiter & Dienste">
+          <p><strong className="text-zinc-300">Supabase</strong> (Datenbank, Authentifizierung, Speicher) — verarbeitet Konto- und Trainingsdaten in unserem Auftrag.</p>
+          <p><strong className="text-zinc-300">Vercel</strong> (Hosting/Auslieferung der App) — verarbeitet technische Zugriffsdaten.</p>
+          <p><strong className="text-zinc-300">Stripe</strong> (Zahlungsabwicklung) — verarbeitet Zahlungs- und Abodaten. Kartendaten werden direkt bei Stripe eingegeben und nicht von uns gespeichert.</p>
+          <p>Mit diesen Anbietern bestehen Auftragsverarbeitungsverträge bzw. geeignete Garantien. Eine Übermittlung in Drittländer (z. B. USA) erfolgt auf Grundlage der EU-Standardvertragsklauseln.</p>
+        </Section>
 
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">4. Deine Rechte</p>
-          <p className="text-zinc-500 text-xs leading-relaxed">
-            Du hast das Recht auf Auskunft, Berichtigung, Löschung und Datenübertragbarkeit. Kontakt: 20asherhd02@gmail.com
-          </p>
-        </section>
+        <Section title="5. Cookies & lokale Speicherung">
+          <p>{APP_NAME} verwendet keine Werbe- oder Tracking-Cookies. Für die Funktion (Login-Sitzung, Einstellungen, Offline-Daten) werden technisch notwendige Cookies bzw. der lokale Browser-Speicher (localStorage) genutzt — Art. 6 Abs. 1 lit. f DSGVO bzw. § 25 Abs. 2 TDDDG.</p>
+        </Section>
 
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">5. Kontakt & Beschwerden</p>
-          <p className="text-zinc-500 text-xs leading-relaxed">
-            Bei Fragen zum Datenschutz wende dich an: 20asherhd02@gmail.com<br />
-            Du hast das Recht, dich bei der zuständigen Aufsichtsbehörde zu beschweren.
-          </p>
-        </section>
+        <Section title="6. Speicherdauer">
+          <p>Wir speichern deine Daten, solange dein Konto besteht. Bei Löschung deines Kontos werden die zugehörigen personenbezogenen Daten gelöscht, soweit keine gesetzlichen Aufbewahrungspflichten (z. B. steuerrechtlich für Rechnungsdaten) entgegenstehen.</p>
+        </Section>
+
+        <Section title="7. Deine Rechte">
+          <p>Du hast das Recht auf Auskunft (Art. 15), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21). Eine erteilte Einwilligung kannst du jederzeit widerrufen.</p>
+          <p>Zur Ausübung genügt eine Nachricht an {OPERATOR.email}. Es besteht zudem ein Beschwerderecht bei einer Datenschutz-Aufsichtsbehörde.</p>
+        </Section>
+
+        <Section title="8. Kontolöschung">
+          <p>Du kannst dein Konto und die damit verbundenen Daten jederzeit über die App oder per E-Mail an {OPERATOR.email} löschen lassen.</p>
+        </Section>
+
+        <p className="text-[11px] text-zinc-700 pt-2">Stand: {LEGAL_UPDATED}</p>
       </div>
     </div>
   );

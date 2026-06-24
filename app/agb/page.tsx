@@ -1,9 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { OPERATOR, APP_NAME, LEGAL_UPDATED } from "@/lib/legal";
 
-export default function AgbPage() {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-1.5">
+      <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest">{title}</p>
+      <div className="text-xs text-zinc-500 leading-relaxed space-y-2">{children}</div>
+    </section>
+  );
+}
+
+export default function AGBPage() {
   return (
     <div className="min-h-screen bg-zinc-950 px-6 py-10 max-w-lg mx-auto">
       <Link href="/account" className="flex items-center gap-2 text-zinc-500 hover:text-zinc-300 text-sm mb-8 transition-colors">
@@ -11,64 +21,55 @@ export default function AgbPage() {
       </Link>
 
       <h1 className="text-2xl font-black text-zinc-100 mb-2">Allgemeine Geschäftsbedingungen</h1>
-      <p className="text-xs text-zinc-600 mb-6">Stand: [Datum einsetzen]</p>
+      <p className="text-xs text-zinc-600 mb-8">für die Nutzung von {APP_NAME}</p>
 
-      <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-8">
-        <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
-        <p className="text-xs text-amber-300 leading-relaxed">
-          <strong>Prototyp</strong> — Diese AGB sind noch nicht vollständig und nicht rechtsverbindlich. Bitte vor dem offiziellen Launch von einem Anwalt oder über eRecht24 erstellen lassen.
-        </p>
-      </div>
+      <div className="space-y-7">
+        <Section title="1. Geltungsbereich & Anbieter">
+          <p>Diese AGB gelten für die Nutzung des Dienstes {APP_NAME}, betrieben von {OPERATOR.name}, {OPERATOR.street}, {OPERATOR.city} ({OPERATOR.email}). Abweichenden Bedingungen wird widersprochen.</p>
+        </Section>
 
-      <div className="space-y-6 text-sm">
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">§ 1 Geltungsbereich</p>
-          <p className="text-zinc-500 text-xs leading-relaxed">
-            Diese AGB gelten für die Nutzung der App „Grapplr" und alle damit verbundenen Dienste, angeboten von [Dein Name], [Adresse].
-          </p>
-        </section>
+        <Section title="2. Leistungsbeschreibung">
+          <p>{APP_NAME} ist eine Anwendung zum Erfassen und Auswerten von BJJ-/Grappling-Training sowie zur Organisation von Gyms und Trainingsgruppen (Stundenplan, Anwesenheit, Mitgliederverwaltung). Der Funktionsumfang kann sich weiterentwickeln.</p>
+        </Section>
 
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">§ 2 Leistungsbeschreibung</p>
-          <p className="text-zinc-500 text-xs leading-relaxed">
-            Grapplr ist eine digitale Trainings-Tracking-App für Brazilian Jiu-Jitsu. Es gibt eine kostenlose Version sowie ein Premium-Abonnement für 5,00 € / Monat mit erweiterten Funktionen.
-          </p>
-        </section>
+        <Section title="3. Konto & Registrierung">
+          <p>Für die Nutzung ist ein Konto erforderlich. Du bist für die Geheimhaltung deiner Zugangsdaten verantwortlich und versicherst, wahrheitsgemäße Angaben zu machen. Das Mindestalter beträgt 16 Jahre; Minderjährige benötigen die Zustimmung der Erziehungsberechtigten.</p>
+        </Section>
 
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">§ 3 Vertragsschluss & Abonnement</p>
-          <p className="text-zinc-500 text-xs leading-relaxed">
-            Das Premium-Abonnement beginnt mit erfolgreicher Zahlung und läuft monatlich. Es verlängert sich automatisch, sofern es nicht vor Ablauf der Laufzeit gekündigt wird. Die Kündigung kann jederzeit zum Ende des laufenden Abrechnungszeitraums über den Stripe-Kundenbereich erfolgen.
-          </p>
-        </section>
+        <Section title="4. Preise & Abonnements">
+          <p>Es gibt einen kostenlosen Basiszugang sowie kostenpflichtige Abonnements: <strong className="text-zinc-300">Pro</strong> (5&nbsp;€/Monat) und <strong className="text-zinc-300">Gym</strong> (29&nbsp;€/Monat). Alle Preise verstehen sich inkl. ggf. anfallender gesetzlicher Umsatzsteuer.</p>
+          <p>Abonnements verlängern sich automatisch monatlich, bis sie gekündigt werden.</p>
+        </Section>
 
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">§ 4 Preise & Zahlung</p>
-          <p className="text-zinc-500 text-xs leading-relaxed">
-            Alle Preise verstehen sich inklusive der gesetzlichen Mehrwertsteuer. Die Zahlung erfolgt über Stripe (Kreditkarte, SEPA-Lastschrift oder PayPal).
-          </p>
-        </section>
+        <Section title="5. Zahlung">
+          <p>Die Zahlungsabwicklung erfolgt über den Dienstleister Stripe. Mit Abschluss eines kostenpflichtigen Abos ermächtigst du den Einzug der jeweiligen Gebühr zu Beginn jeder Abrechnungsperiode.</p>
+        </Section>
 
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">§ 5 Widerrufsrecht</p>
-          <p className="text-zinc-500 text-xs leading-relaxed">
-            Dir steht ein gesetzliches Widerrufsrecht zu. Näheres entnimmst du der <Link href="/widerruf" className="text-red-400 hover:text-red-300">Widerrufsbelehrung</Link>.
-          </p>
-        </section>
+        <Section title="6. Laufzeit & Kündigung">
+          <p>Abonnements können jederzeit zum Ende der laufenden Abrechnungsperiode gekündigt werden (in den Kontoeinstellungen bzw. über das Stripe-Kundenportal). Bereits gezahlte Beträge für die laufende Periode werden nicht anteilig erstattet. Das gesetzliche Widerrufsrecht (siehe Widerrufsbelehrung) bleibt unberührt.</p>
+        </Section>
 
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">§ 6 Haftung</p>
-          <p className="text-zinc-500 text-xs leading-relaxed">
-            Die Haftung für leicht fahrlässige Verletzung unwesentlicher Vertragspflichten ist ausgeschlossen, soweit keine Schäden aus der Verletzung des Lebens, des Körpers oder der Gesundheit entstehen.
-          </p>
-        </section>
+        <Section title="7. Pflichten der Nutzer">
+          <p>Du verpflichtest dich, den Dienst nicht missbräuchlich zu nutzen, keine rechtswidrigen Inhalte einzustellen und Rechte Dritter zu wahren. Wir können Konten bei schwerwiegenden Verstößen sperren.</p>
+        </Section>
 
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">§ 7 Anwendbares Recht</p>
-          <p className="text-zinc-500 text-xs leading-relaxed">
-            Es gilt das Recht der Bundesrepublik Deutschland.
-          </p>
-        </section>
+        <Section title="8. Verfügbarkeit">
+          <p>Wir bemühen uns um eine hohe Verfügbarkeit, schulden diese jedoch nicht zu jeder Zeit. Wartungsarbeiten, Störungen oder Ausfälle von Drittanbietern können die Nutzung vorübergehend einschränken.</p>
+        </Section>
+
+        <Section title="9. Haftung">
+          <p>Wir haften unbeschränkt bei Vorsatz und grober Fahrlässigkeit sowie bei Verletzung von Leben, Körper oder Gesundheit. Bei einfacher Fahrlässigkeit haften wir nur bei Verletzung wesentlicher Vertragspflichten und begrenzt auf den vorhersehbaren, typischen Schaden. Die Trainings- und Gesundheitsdaten dienen nur der Selbstorganisation und ersetzen keine medizinische oder sportliche Beratung.</p>
+        </Section>
+
+        <Section title="10. Änderungen der AGB">
+          <p>Wir können diese AGB mit Wirkung für die Zukunft ändern. Über wesentliche Änderungen informieren wir rechtzeitig; widersprichst du nicht, gelten sie als angenommen.</p>
+        </Section>
+
+        <Section title="11. Schlussbestimmungen">
+          <p>Es gilt deutsches Recht. Sollte eine Bestimmung unwirksam sein, bleibt die Wirksamkeit der übrigen unberührt.</p>
+        </Section>
+
+        <p className="text-[11px] text-zinc-700 pt-2">Stand: {LEGAL_UPDATED}</p>
       </div>
     </div>
   );

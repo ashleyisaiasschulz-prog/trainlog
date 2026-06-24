@@ -1,7 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { OPERATOR, APP_NAME, LEGAL_UPDATED } from "@/lib/legal";
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-1.5">
+      <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest">{title}</p>
+      <div className="text-xs text-zinc-500 leading-relaxed space-y-2">{children}</div>
+    </section>
+  );
+}
 
 export default function WiderrufPage() {
   return (
@@ -11,48 +21,33 @@ export default function WiderrufPage() {
       </Link>
 
       <h1 className="text-2xl font-black text-zinc-100 mb-2">Widerrufsbelehrung</h1>
-      <p className="text-xs text-zinc-600 mb-6">Gemäß § 312g BGB</p>
+      <p className="text-xs text-zinc-600 mb-8">für Verbraucher gemäß § 312g, § 355 BGB</p>
 
-      <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-8">
-        <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
-        <p className="text-xs text-amber-300 leading-relaxed">
-          <strong>Prototyp</strong> — Diese Widerrufsbelehrung ist noch nicht vollständig und nicht rechtsverbindlich. Vor dem offiziellen Launch rechtlich prüfen lassen.
-        </p>
-      </div>
+      <div className="space-y-7">
+        <Section title="Widerrufsrecht">
+          <p>Du hast das Recht, binnen vierzehn Tagen ohne Angabe von Gründen den Vertrag über ein kostenpflichtiges Abonnement zu widerrufen. Die Widerrufsfrist beträgt vierzehn Tage ab dem Tag des Vertragsabschlusses.</p>
+          <p>Um dein Widerrufsrecht auszuüben, musst du uns ({OPERATOR.name}, {OPERATOR.street}, {OPERATOR.city}, E-Mail: {OPERATOR.email}) mittels einer eindeutigen Erklärung (z. B. E-Mail) über deinen Entschluss informieren. Zur Wahrung der Frist genügt die Absendung der Mitteilung vor Ablauf der Frist.</p>
+        </Section>
 
-      <div className="space-y-6 text-sm">
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Widerrufsrecht</p>
-          <p className="text-zinc-500 text-xs leading-relaxed">
-            Du hast das Recht, binnen <strong className="text-zinc-300">14 Tagen</strong> ohne Angabe von Gründen diesen Vertrag zu widerrufen. Die Widerrufsfrist beträgt 14 Tage ab dem Tag des Vertragsabschlusses.
+        <Section title="Folgen des Widerrufs">
+          <p>Wenn du den Vertrag widerrufst, erstatten wir dir alle erhaltenen Zahlungen unverzüglich und spätestens binnen vierzehn Tagen ab Eingang deines Widerrufs, über dasselbe Zahlungsmittel, das du eingesetzt hast. Es werden keine Entgelte für die Erstattung berechnet.</p>
+        </Section>
+
+        <Section title="Vorzeitiges Erlöschen bei digitalen Diensten">
+          <p>Bei der Bereitstellung digitaler Dienstleistungen erlischt das Widerrufsrecht, wenn du ausdrücklich zugestimmt hast, dass wir vor Ablauf der Widerrufsfrist mit der Ausführung beginnen, und du bestätigt hast, dass du dein Widerrufsrecht damit verlierst. Beim Abschluss eines Abos und sofortiger Freischaltung der kostenpflichtigen Funktionen gilt diese Zustimmung als erteilt.</p>
+        </Section>
+
+        <Section title="Muster-Widerrufsformular">
+          <p className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-zinc-400">
+            An {OPERATOR.name}, {OPERATOR.email}:<br /><br />
+            Hiermit widerrufe(n) ich/wir den von mir/uns abgeschlossenen Vertrag über das Abonnement von {APP_NAME}.<br /><br />
+            – Bestellt am / Konto-E-Mail: ____________<br />
+            – Name des/der Verbraucher(s): ____________<br />
+            – Datum: ____________
           </p>
-        </section>
+        </Section>
 
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Widerruf erklären</p>
-          <p className="text-zinc-500 text-xs leading-relaxed">
-            Um dein Widerrufsrecht auszuüben, musst du uns mittels einer eindeutigen Erklärung (z. B. E-Mail) über deinen Entschluss informieren:
-          </p>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-zinc-400 space-y-1">
-            <p>[Dein Name]</p>
-            <p>[Adresse]</p>
-            <p>E-Mail: 20asherhd02@gmail.com</p>
-          </div>
-        </section>
-
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Folgen des Widerrufs</p>
-          <p className="text-zinc-500 text-xs leading-relaxed">
-            Wenn du diesen Vertrag widerrufst, haben wir dir alle Zahlungen, die wir von dir erhalten haben, unverzüglich und spätestens binnen 14 Tagen zurückzuzahlen.
-          </p>
-        </section>
-
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest">Ausschluss / Erlöschen des Widerrufsrechts</p>
-          <p className="text-zinc-500 text-xs leading-relaxed">
-            Das Widerrufsrecht erlischt bei Verträgen zur Lieferung von digitalen Inhalten, wenn die Ausführung begonnen hat und du ausdrücklich zugestimmt hast, dass wir mit der Ausführung beginnen und du dein Widerrufsrecht kennst.
-          </p>
-        </section>
+        <p className="text-[11px] text-zinc-700 pt-2">Stand: {LEGAL_UPDATED}</p>
       </div>
     </div>
   );
