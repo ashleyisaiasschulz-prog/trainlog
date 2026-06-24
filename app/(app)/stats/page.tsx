@@ -354,7 +354,7 @@ export default function StatsPage() {
             <XAxis dataKey="week" tick={{ fill: "#52525b", fontSize: 10 }} axisLine={false} tickLine={false} />
             <YAxis hide allowDecimals={false} />
             <Tooltip {...TOOLTIP_STYLE} />
-            <Bar dataKey="count" name="Sessions" fill="#ef4444" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="count" name="Sessions" fill="#ef4444" radius={[4, 4, 0, 0]} isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -396,7 +396,7 @@ export default function StatsPage() {
         <ChartCard title="Gi vs No-Gi">
           <ResponsiveContainer width="100%" height={180}>
             <PieChart margin={{ top: 8, bottom: 0 }}>
-              <Pie data={giRatio} cx="50%" cy="45%" innerRadius={42} outerRadius={62} paddingAngle={4} dataKey="value">
+              <Pie data={giRatio} cx="50%" cy="45%" innerRadius={42} outerRadius={62} paddingAngle={4} dataKey="value" isAnimationActive={false}>
                 <Cell fill="#3b82f6" />
                 <Cell fill="#8b5cf6" />
               </Pie>
@@ -470,7 +470,7 @@ export default function StatsPage() {
               <p className="text-[11px] text-zinc-600 mb-2">How matches ended</p>
               <ResponsiveContainer width="100%" height={210}>
                 <PieChart margin={{ top: 8, bottom: 0 }}>
-                  <Pie data={recordBreakdown} cx="50%" cy="45%" innerRadius={42} outerRadius={64} paddingAngle={3} dataKey="value" nameKey="name">
+                  <Pie data={recordBreakdown} cx="50%" cy="45%" innerRadius={42} outerRadius={64} paddingAngle={3} dataKey="value" nameKey="name" isAnimationActive={false}>
                     {recordBreakdown.map((d, i) => <Cell key={i} fill={d.fill} />)}
                   </Pie>
                   <Legend iconType="circle" iconSize={7}
@@ -495,7 +495,7 @@ export default function StatsPage() {
               <XAxis type="number" hide />
               <YAxis type="category" dataKey="name" width={112} tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip {...TOOLTIP_STYLE} />
-              <Bar dataKey="value" name="Sessions" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="value" name="Sessions" radius={[0, 4, 4, 0]} isAnimationActive={false}>
                 {positionData.map((_, i) => <Cell key={i} fill={RED_SCALE[i % RED_SCALE.length]} />)}
               </Bar>
             </BarChart>
@@ -511,7 +511,7 @@ export default function StatsPage() {
               <XAxis type="number" hide />
               <YAxis type="category" dataKey="name" width={112} tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip {...TOOLTIP_STYLE} />
-              <Bar dataKey="value" name="Times" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="value" name="Times" radius={[0, 4, 4, 0]} isAnimationActive={false}>
                 {submissionData.given.map((_, i) => <Cell key={i} fill={GREEN_SCALE[i % GREEN_SCALE.length]} />)}
               </Bar>
             </BarChart>
@@ -527,7 +527,7 @@ export default function StatsPage() {
               <XAxis type="number" hide />
               <YAxis type="category" dataKey="name" width={112} tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip {...TOOLTIP_STYLE} />
-              <Bar dataKey="value" name="Times" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="value" name="Times" radius={[0, 4, 4, 0]} isAnimationActive={false}>
                 {submissionData.received.map((_, i) => <Cell key={i} fill={RED_SCALE[i % RED_SCALE.length]} />)}
               </Bar>
             </BarChart>
@@ -543,7 +543,7 @@ export default function StatsPage() {
               <XAxis type="number" hide />
               <YAxis type="category" dataKey="name" width={112} tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip {...TOOLTIP_STYLE} />
-              <Bar dataKey="value" name="Times" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="value" name="Times" radius={[0, 4, 4, 0]} isAnimationActive={false}>
                 {sweepData.given.map((_, i) => <Cell key={i} fill="#3b82f6" opacity={1 - i * 0.12} />)}
               </Bar>
             </BarChart>
@@ -559,7 +559,7 @@ export default function StatsPage() {
               <XAxis type="number" hide />
               <YAxis type="category" dataKey="name" width={112} tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip {...TOOLTIP_STYLE} />
-              <Bar dataKey="value" name="Times" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="value" name="Times" radius={[0, 4, 4, 0]} isAnimationActive={false}>
                 {sweepData.received.map((_, i) => <Cell key={i} fill="#f97316" opacity={1 - i * 0.12} />)}
               </Bar>
             </BarChart>
@@ -575,7 +575,7 @@ export default function StatsPage() {
               <XAxis type="number" hide />
               <YAxis type="category" dataKey="name" width={112} tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip {...TOOLTIP_STYLE} />
-              <Bar dataKey="value" name="Times" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="value" name="Times" radius={[0, 4, 4, 0]} isAnimationActive={false}>
                 {escapeData.given.map((_, i) => <Cell key={i} fill="#8b5cf6" opacity={1 - i * 0.12} />)}
               </Bar>
             </BarChart>
@@ -591,7 +591,7 @@ export default function StatsPage() {
               <XAxis type="number" hide />
               <YAxis type="category" dataKey="name" width={112} tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip {...TOOLTIP_STYLE} />
-              <Bar dataKey="value" name="Times" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="value" name="Times" radius={[0, 4, 4, 0]} isAnimationActive={false}>
                 {escapeData.received.map((_, i) => <Cell key={i} fill="#ec4899" opacity={1 - i * 0.12} />)}
               </Bar>
             </BarChart>
