@@ -85,8 +85,9 @@ export default function StatsPage() {
       name, ...a, daysSince: a.last ? differenceInDays(now, new Date(a.last + "T12:00:00")) : null,
     }));
     const focus = arr.filter(x => x.recent > 0).sort((a, b) => b.recent - a.recent).slice(0, 8);
-    const neglected = arr.filter(x => x.total >= 3 && (x.daysSince ?? 0) >= 45)
-      .sort((a, b) => (b.daysSince ?? 0) - (a.daysSince ?? 0)).slice(0, 6);
+    // Trained at least twice but not in the last month → drill these again.
+    const neglected = arr.filter(x => x.total >= 2 && (x.daysSince ?? 0) >= 30)
+      .sort((a, b) => (b.daysSince ?? 0) - (a.daysSince ?? 0)).slice(0, 8);
     return { focus, neglected };
   }, [sessions]);
 
