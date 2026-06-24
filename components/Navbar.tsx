@@ -45,8 +45,8 @@ export default function Navbar() {
 
           {/* Profile avatar */}
           <Link
-            href="/account"
-            className="flex-1 flex flex-col items-center justify-center gap-1 py-1"
+            href="/account" prefetch
+            className="flex-1 flex flex-col items-center justify-center gap-1 py-1 touch-manipulation select-none"
           >
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-150 ${
               profileActive
@@ -76,7 +76,7 @@ function NavItem({
   const base = activeMatch ?? href;
   const active = pathname === base || pathname.startsWith(base + "/");
   return (
-    <Link href={href} className="flex-1 flex flex-col items-center justify-center gap-1 py-1">
+    <Link href={href} prefetch className="flex-1 flex flex-col items-center justify-center gap-1 py-1 touch-manipulation select-none">
       <div className={`p-1.5 rounded-xl transition-colors duration-150 ${active ? "bg-red-500/10" : ""}`}>
         {/* Clone the icon child with size/stroke/color props */}
         {active
